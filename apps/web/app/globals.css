@@ -301,3 +301,161 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.site {
+  min-height: 100vh;
+  background: #071733;
+}
+
+.hero {
+  position: relative;
+  min-height: 86vh;
+  overflow: hidden;
+  background: #071733;
+  color: white;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 23, 51, 0.94) 0%, rgba(7, 23, 51, 0.78) 40%, rgba(7, 23, 51, 0.16) 100%),
+    url("/piphacklup-banner.png") center / cover no-repeat;
+  image-rendering: pixelated;
+}
+
+.site-nav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 18px 0;
+}
+
+.brand.public {
+  color: white;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  width: min(760px, calc(100% - 32px));
+  min-height: calc(86vh - 84px);
+  margin: 0 auto;
+  margin-left: max(16px, calc((100% - 1120px) / 2));
+  padding-bottom: 56px;
+}
+
+.hero-content h1 {
+  margin: 0;
+  font-size: clamp(48px, 9vw, 104px);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.hero-content p {
+  max-width: 650px;
+  margin: 18px 0 0;
+  color: #d8f5ff;
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.hero-content .button-row {
+  margin-top: 26px;
+}
+
+.button.large {
+  min-height: 46px;
+  padding-inline: 16px;
+}
+
+.public-section {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
+  gap: 28px;
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 56px;
+  color: white;
+}
+
+.public-section h2,
+.public-band h2 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.feature {
+  min-height: 220px;
+  border: 1px solid rgba(176, 230, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 16px;
+}
+
+.feature svg {
+  color: #9eeaff;
+}
+
+.feature h3 {
+  margin: 18px 0 8px;
+  font-size: 17px;
+}
+
+.feature p,
+.public-band p {
+  margin: 0;
+  color: #bfeaff;
+  line-height: 1.55;
+}
+
+.public-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-top: 1px solid rgba(176, 230, 255, 0.18);
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 34px 0 46px;
+  color: white;
+}
+
+.public-band > div {
+  max-width: 720px;
+}
+
+@media (max-width: 900px) {
+  .site-nav,
+  .public-band {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hero-content {
+    margin-inline: auto;
+  }
+
+  .public-section {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
