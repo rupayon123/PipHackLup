@@ -1,0 +1,28 @@
+{
+  "name": "@piphacklup/bot",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "pnpm typecheck",
+    "deploy:commands": "tsx src/deploy-commands.ts",
+    "dev": "tsx watch src/index.ts",
+    "lint": "pnpm typecheck",
+    "predev": "pnpm --filter @piphacklup/core build",
+    "start": "node dist/index.js",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "pnpm --filter @piphacklup/core build && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@piphacklup/core": "workspace:*",
+    "discord.js": "^14.26.4",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.0.15"
+  }
+}

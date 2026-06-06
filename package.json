@@ -1,0 +1,26 @@
+{
+  "name": "piphacklup",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PipHackLup is a hackathon operations Discord bot with onboarding, queues, team formation, moderation, and an organizer dashboard.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.25.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "check": "pnpm -r check",
+    "dev": "pnpm --parallel --filter @piphacklup/bot --filter @piphacklup/web dev",
+    "dev:bot": "pnpm --filter @piphacklup/bot dev",
+    "dev:web": "pnpm --filter @piphacklup/web dev",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.1",
+    "prettier": "^3.7.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.0.15"
+  }
+}
