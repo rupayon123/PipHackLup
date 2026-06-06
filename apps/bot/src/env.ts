@@ -1,4 +1,13 @@
-import "dotenv/config";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { config } from "dotenv";
+
+for (const envPath of [".env.local", "../../.env.local", ".env", "../../.env"]) {
+  const absolutePath = resolve(process.cwd(), envPath);
+  if (existsSync(absolutePath)) {
+    config({ path: absolutePath, override: false });
+  }
+}
 
 export interface BotEnv {
   discordToken: string;
