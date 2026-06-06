@@ -2,6 +2,12 @@
 
 PipHackLup is designed to start on free tiers and move to paid hosting later without a rewrite.
 
+Public links:
+
+- Website: https://piphacklup.vercel.app
+- GitHub repo: https://github.com/rupayon123/PipHackLup
+- Add to Discord: https://discord.com/oauth2/authorize?client_id=1512918151313231983&scope=bot+applications.commands&permissions=1117094267958
+
 ## Dashboard: Vercel Hobby
 
 Deploy `apps/web` as the Vercel project root.
@@ -70,4 +76,4 @@ curl http://localhost:8787/health
 
 ## Repo creation note
 
-The requested public repository is `rupayon123/PipHackLup`. Local GitHub CLI is currently authenticated as `pisces123`, so create the repo manually under `rupayon123` or switch `gh` auth before pushing.
+The public repository is live at `rupayon123/PipHackLup`. Keep the repo public, MIT licensed, and linked to `https://piphacklup.vercel.app` for discovery.

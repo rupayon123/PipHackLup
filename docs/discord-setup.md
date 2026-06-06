@@ -1,11 +1,20 @@
 # Discord Setup
 
+Public app name: `PipHackLup`
+
+Public install link:
+
+```text
+https://discord.com/oauth2/authorize?client_id=1512918151313231983&scope=bot+applications.commands&permissions=1117094267958
+```
+
 ## 1. Create the app
 
 1. Go to the Discord Developer Portal.
 2. Create an application named `PipHackLup`.
 3. Add a bot user.
 4. Copy the application/client ID and bot token into your local `.env.local`.
+5. Use `assets/piphacklup-avatar.png` for the app icon and `assets/piphacklup-banner.png` for the app banner.
 
 Never commit or paste the bot token in chat.
 

@@ -4,6 +4,14 @@
   "private": true,
   "description": "PipHackLup is a hackathon operations Discord bot with onboarding, queues, team formation, moderation, and an organizer dashboard.",
   "license": "MIT",
+  "homepage": "https://piphacklup.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rupayon123/PipHackLup.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rupayon123/PipHackLup/issues"
+  },
   "packageManager": "pnpm@10.25.0",
   "scripts": {
     "build": "pnpm -r build",
