@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, Download, Shield, Users, Wrench } from "lucide-react";
+import { BarChart3, ClipboardList, Download, FileText, Shield, Users, Wrench } from "lucide-react";
 import Link from "next/link";
 
 const navItems = [
@@ -6,7 +6,8 @@ const navItems = [
   { href: "/setup", label: "Setup", icon: Wrench },
   { href: "/queues", label: "Queues", icon: ClipboardList },
   { href: "/teams", label: "Teams", icon: Users },
-  { href: "/moderation", label: "Moderation", icon: Shield }
+  { href: "/moderation", label: "Moderation", icon: Shield },
+  { href: "/privacy", label: "Privacy", icon: FileText }
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
