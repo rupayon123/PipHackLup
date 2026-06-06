@@ -26,6 +26,12 @@ PipHackLup is a hackathon operations Discord bot for 100-500 person events. It h
 
 > Branding note: PipHackLup uses an original blue penguin mascot. Do not commit Pokemon/Piplup artwork or other protected assets to this repository.
 
+Brand assets live in `assets/`:
+
+- Discord/app icon: `assets/piphacklup-avatar.png`
+- Discord banner: `assets/piphacklup-banner.png`
+- GitHub social preview: `assets/piphacklup-social-preview.png`
+
 ## Public Links
 
 - Website: https://piphacklup.vercel.app
