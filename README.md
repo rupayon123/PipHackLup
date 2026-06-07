@@ -19,16 +19,15 @@
 </p>
 
 <p align="center">
-  <img src="assets/piphacklup-avatar.png" alt="PipHackLup blue penguin mascot logo" width="144">
+  <img src="assets/piphacklup-discord-avatar.png" alt="PipHackLup Discord bot avatar" width="144">
 </p>
 
 PipHackLup is a hackathon operations Discord bot for 100-500 person events. It helps organizers make Discord feel less chaotic by guiding newcomers, assigning roles, managing mentor queues, forming teams, tracking moderation cases, and giving staff a dashboard for event day.
 
-> Branding note: PipHackLup uses an original blue penguin mascot. Do not commit Pokemon/Piplup artwork or other protected assets to this repository.
-
 Brand assets live in `assets/`:
 
-- Discord/app icon: `assets/piphacklup-avatar.png`
+- Discord/app icon: `assets/piphacklup-discord-avatar.png`
+- Web favicon/app icon: `assets/piphacklup-avatar.png`
 - Discord banner: `assets/piphacklup-banner.png`
 - GitHub social preview: `assets/piphacklup-social-preview.png`
 
