@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: "PipHackLup - Hackathon Discord Bot",
-    template: "%s | PipHackLup"
+    template: "%s | PipHackLup",
   },
   description:
     "PipHackLup is a hackathon Discord bot for onboarding, mentor queues, team formation, moderation cases, AutoMod setup, and organizer dashboards.",
@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     "hackathon team formation",
     "Discord moderation bot",
     "Discord onboarding bot",
-    "hackathon organizer dashboard"
+    "hackathon organizer dashboard",
   ],
   authors: [{ name: "Rupayon Haldar", url: "https://github.com/rupayon123" }],
   creator: "Rupayon Haldar",
   publisher: "Rupayon Haldar",
   alternates: {
-    canonical: siteUrl
+    canonical: siteUrl,
   },
   openGraph: {
     type: "website",
@@ -36,23 +36,23 @@ export const metadata: Metadata = {
       "Run hackathon Discord servers with guided onboarding, queues, team matching, moderation cases, and a public organizer dashboard.",
     images: [
       {
-        url: "/piphacklup-banner.png",
-        width: 680,
-        height: 240,
-        alt: "PipHackLup 8-bit hackathon Discord bot banner"
-      }
-    ]
+        url: "/piphacklup-site-hero.png",
+        width: 2400,
+        height: 1350,
+        alt: "PipHackLup high-resolution 8-bit hackathon Discord bot hero",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "PipHackLup - Hackathon Discord Bot",
     description:
       "A public hackathon Discord bot for onboarding, queues, team formation, moderation, and dashboards.",
-    images: ["/piphacklup-banner.png"]
+    images: ["/piphacklup-site-hero.png"],
   },
   icons: {
     icon: "/piphacklup-avatar.png",
-    apple: "/piphacklup-avatar.png"
+    apple: "/piphacklup-avatar.png",
   },
   robots: {
     index: true,
@@ -61,12 +61,14 @@ export const metadata: Metadata = {
       index: true,
       follow: true,
       "max-image-preview": "large",
-      "max-snippet": -1
-    }
-  }
+      "max-snippet": -1,
+    },
+  },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body>{children}</body>

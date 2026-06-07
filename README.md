@@ -29,6 +29,7 @@ Brand assets live in `assets/`:
 - Discord/app icon: `assets/piphacklup-discord-avatar.png`
 - Web favicon/app icon: `assets/piphacklup-avatar.png`
 - Discord banner: `assets/piphacklup-banner.png`
+- Website hero: `assets/piphacklup-site-hero.png`
 - GitHub social preview: `assets/piphacklup-social-preview.png`
 
 ## Public Links
