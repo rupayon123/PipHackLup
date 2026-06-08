@@ -25,6 +25,10 @@ Never commit these values:
 
 Use `.env.local` for local development and Vercel/host environment variables for production.
 
+## Baseline Controls
+
+PipHackLup's public code should keep RBAC, rate limiting, prompt-injection filtering, dependency audits, and secret-pattern checks in place. See `docs/security-baseline.md` for the implementation map and future hardening checklist.
+
 ## Supported Versions
 
 PipHackLup is currently public alpha. Security fixes should target the `main` branch.

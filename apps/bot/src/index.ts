@@ -16,6 +16,11 @@ import {
   getTrainingSettings,
   listTrainingEntries,
 } from "./lib/knowledge-store.js";
+import {
+  botRateLimitKey,
+  botRateLimitPolicies,
+  checkBotRateLimit,
+} from "./lib/rate-limit.js";
 
 const env = getBotEnv();
 
@@ -73,6 +78,17 @@ client.on(Events.MessageCreate, async (message) => {
   if (!question) {
     await message.reply(
       "Ask me a hackathon question after the mention, or use `/ask question:`.",
+    );
+    return;
+  }
+
+  const ambientRateLimit = checkBotRateLimit(
+    botRateLimitKey(["ambient-qa", message.guildId, message.author.id]),
+    botRateLimitPolicies.ambientQa,
+  );
+  if (!ambientRateLimit.allowed) {
+    await message.reply(
+      `I am cooling down for this chat flow. Try again in ${ambientRateLimit.retryAfterSeconds}s or open a help queue ticket.`,
     );
     return;
   }

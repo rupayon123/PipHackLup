@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getKnowledgeSettingsFromDb,
-  isDatabaseConfigured,
   type KnowledgeSettingsPatch,
   updateKnowledgeSettingsInDb,
 } from "@piphacklup/db";
 import type { KnowledgeAssistantSettings } from "@piphacklup/core";
-import { findManagedGuild, readDiscordSession } from "@/lib/discord-auth";
+import { requireOrganizerGuildAccess } from "@/lib/dashboard-security";
+import { webRateLimitPolicies } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
-  const access = await requireTrainingAccess(request);
+  const access = await requireOrganizerGuildAccess(request, {
+    action: "training-settings-read",
+    rateLimit: webRateLimitPolicies.dashboardRead,
+  });
   if (access instanceof NextResponse) return access;
 
   return NextResponse.json({
@@ -18,7 +21,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const access = await requireTrainingAccess(request);
+  const access = await requireOrganizerGuildAccess(request, {
+    action: "training-settings-write",
+    rateLimit: webRateLimitPolicies.dashboardWrite,
+  });
   if (access instanceof NextResponse) return access;
 
   const body = (await request.json()) as Partial<KnowledgeAssistantSettings>;
@@ -42,37 +48,6 @@ export async function POST(request: NextRequest) {
   const settings = await updateKnowledgeSettingsInDb(access.guild, patch);
 
   return NextResponse.json({ settings });
-}
-
-async function requireTrainingAccess(request: NextRequest) {
-  if (!isDatabaseConfigured()) {
-    return NextResponse.json(
-      { error: "database_not_configured" },
-      { status: 503 },
-    );
-  }
-
-  const guildId = request.nextUrl.searchParams.get("guildId");
-  const session = await readDiscordSession();
-  if (!session) {
-    return NextResponse.json(
-      { error: "discord_login_required" },
-      { status: 401 },
-    );
-  }
-  if (!guildId) {
-    return NextResponse.json({ error: "guild_id_required" }, { status: 400 });
-  }
-
-  const guild = findManagedGuild(session, guildId);
-  if (!guild) {
-    return NextResponse.json(
-      { error: "missing_manage_server" },
-      { status: 403 },
-    );
-  }
-
-  return { session, guild };
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 const SESSION_COOKIE = "piphacklup_discord_session";
 const STATE_COOKIE = "piphacklup_oauth_state";
 const DISCORD_API = "https://discord.com/api/v10";
+const ADMINISTRATOR = 1n << 3n;
 const MANAGE_GUILD = 1n << 5n;
 
 export interface ManagedDiscordGuild {
@@ -204,7 +205,11 @@ async function fetchDiscord<T>(path: string, accessToken: string): Promise<T> {
 
 function canManageGuild(permissions: string, isOwner: boolean): boolean {
   if (isOwner) return true;
-  return (BigInt(permissions) & MANAGE_GUILD) === MANAGE_GUILD;
+  const granted = BigInt(permissions);
+  return (
+    (granted & ADMINISTRATOR) === ADMINISTRATOR ||
+    (granted & MANAGE_GUILD) === MANAGE_GUILD
+  );
 }
 
 function signSession(session: DiscordSession): string {

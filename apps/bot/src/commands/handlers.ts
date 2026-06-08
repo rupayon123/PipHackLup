@@ -11,16 +11,20 @@ import {
 } from "discord.js";
 import {
   answerHackathonQuestion,
+  assertKnowledgeTrainingIsSafe,
   buildOnboardingSteps,
   canAccessGatedServer,
   claimTicket,
   closeTicket,
   defaultAutoModTemplates,
   escalateTicket,
+  KnowledgeSafetyError,
   onboardingProgress,
   orderQueue,
   parseKnowledgeImportText,
   suggestTeamMatches,
+  type CreateKnowledgeEntryInput,
+  type HackathonKnowledgeEntry,
   type KnowledgeAnswerResult,
   type KnowledgeEscalationTarget,
   type KnowledgeAssistantSettings,
@@ -43,6 +47,11 @@ import {
   removeTrainingEntry,
   saveTrainingSettings,
 } from "../lib/knowledge-store.js";
+import {
+  botRateLimitKey,
+  botRateLimitPolicies,
+  checkBotRateLimit,
+} from "../lib/rate-limit.js";
 
 type SendableChannel = {
   send: (options: MessageCreateOptions) => Promise<unknown>;
@@ -57,6 +66,42 @@ export async function handleChatInput(
       flags: MessageFlags.Ephemeral,
     });
     return;
+  }
+
+  const commandRateLimit = checkBotRateLimit(
+    botRateLimitKey([
+      "command",
+      interaction.guildId,
+      interaction.user.id,
+      interaction.commandName,
+    ]),
+    botRateLimitPolicies.command,
+  );
+  if (!commandRateLimit.allowed) {
+    await interaction.reply({
+      content: `Slow down a bit. Try that command again in ${commandRateLimit.retryAfterSeconds}s.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  if (isMutationCommand(interaction.commandName)) {
+    const mutationRateLimit = checkBotRateLimit(
+      botRateLimitKey([
+        "mutation",
+        interaction.guildId,
+        interaction.user.id,
+        interaction.commandName,
+      ]),
+      botRateLimitPolicies.mutationCommand,
+    );
+    if (!mutationRateLimit.allowed) {
+      await interaction.reply({
+        content: `That action is rate limited. Try again in ${mutationRateLimit.retryAfterSeconds}s.`,
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
   }
 
   switch (interaction.commandName) {
@@ -130,7 +175,8 @@ async function handleTrain(
   const guildId = interaction.guildId!;
 
   if (subcommand === "add") {
-    const entry = await addTrainingEntry(
+    const entry = await addTrainingEntrySafely(
+      interaction,
       {
         guildId,
         title: interaction.options.getString("title", true),
@@ -142,6 +188,7 @@ async function handleTrain(
       },
       interaction.guild?.name ?? "Hackathon",
     );
+    if (!entry) return;
 
     await interaction.reply({
       content: `Trained PipHackLup on **${entry.title}** as \`${entry.id}\`.`,
@@ -158,21 +205,32 @@ async function handleTrain(
       interaction.options.getString("details", true),
       defaultEscalation,
     ).slice(0, 25);
-    const entries = await Promise.all(
-      parsed.map((entry) =>
-        addTrainingEntry(
-          {
-            guildId,
-            title: entry.title,
-            answer: entry.answer,
-            tags: entry.tags,
-            escalationTarget: entry.escalationTarget,
-            createdBy: interaction.user.id,
-          },
-          interaction.guild?.name ?? "Hackathon",
-        ),
-      ),
-    );
+    try {
+      for (const entry of parsed) {
+        assertKnowledgeTrainingIsSafe(entry);
+      }
+    } catch (error) {
+      if (await replyKnowledgeSafetyError(interaction, error)) return;
+      throw error;
+    }
+
+    const entries = [];
+    for (const entry of parsed) {
+      const saved = await addTrainingEntrySafely(
+        interaction,
+        {
+          guildId,
+          title: entry.title,
+          answer: entry.answer,
+          tags: entry.tags,
+          escalationTarget: entry.escalationTarget,
+          createdBy: interaction.user.id,
+        },
+        interaction.guild?.name ?? "Hackathon",
+      );
+      if (!saved) return;
+      entries.push(saved);
+    }
 
     await interaction.reply({
       content: entries.length
@@ -437,6 +495,37 @@ function buildKnowledgeSettingsSummary(
     `Mentor role: ${settings.mentorRoleId ? `<@&${settings.mentorRoleId}>` : "**not set**"}`,
     `Help channel: ${settings.helpChannelId ? `<#${settings.helpChannelId}>` : "**current channel fallback**"}`,
   ].join("\n");
+}
+
+async function addTrainingEntrySafely(
+  interaction: ChatInputCommandInteraction,
+  input: CreateKnowledgeEntryInput,
+  guildName: string,
+): Promise<HackathonKnowledgeEntry | null> {
+  try {
+    return await addTrainingEntry(input, guildName);
+  } catch (error) {
+    if (!(await replyKnowledgeSafetyError(interaction, error))) throw error;
+    return null;
+  }
+}
+
+async function replyKnowledgeSafetyError(
+  interaction: ChatInputCommandInteraction,
+  error: unknown,
+): Promise<boolean> {
+  if (!(error instanceof KnowledgeSafetyError)) return false;
+
+  await interaction.reply({
+    content: [
+      "I blocked that training entry because it looks like prompt-injection content.",
+      ...error.findings.map(
+        (finding) => `- ${finding.code}: ${finding.message}`,
+      ),
+    ].join("\n"),
+    flags: MessageFlags.Ephemeral,
+  });
+  return true;
 }
 
 async function handleOnboard(
@@ -790,6 +879,10 @@ function optionalEvidence(evidenceMessageUrl?: string): {
   evidenceMessageUrl?: string;
 } {
   return evidenceMessageUrl ? { evidenceMessageUrl } : {};
+}
+
+function isMutationCommand(commandName: string): boolean {
+  return ["mod", "queue", "setup", "team", "train"].includes(commandName);
 }
 
 function truncate(value: string, maxLength: number): string {

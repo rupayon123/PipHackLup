@@ -4,5 +4,6 @@ export * from "./knowledge.js";
 export * from "./moderation.js";
 export * from "./onboarding.js";
 export * from "./queues.js";
+export * from "./security.js";
 export * from "./teams.js";
 export * from "./types.js";

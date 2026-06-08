@@ -1,4 +1,8 @@
 import { createId } from "./ids.js";
+import {
+  analyzePromptInjectionRisk,
+  assertKnowledgeTrainingIsSafe,
+} from "./security.js";
 import type {
   HackathonKnowledgeEntry,
   KnowledgeAnswerResult,
@@ -103,6 +107,11 @@ export function createKnowledgeEntry(
   input: CreateKnowledgeEntryInput,
 ): HackathonKnowledgeEntry {
   const now = input.now ?? new Date().toISOString();
+  assertKnowledgeTrainingIsSafe({
+    title: input.title,
+    answer: input.answer,
+  });
+
   return {
     id: createId("know"),
     guildId: input.guildId,
@@ -123,6 +132,22 @@ export function answerHackathonQuestion(
 ): KnowledgeAnswerResult {
   const mergedSettings = { ...defaultKnowledgeSettings, ...settings };
   const cleanQuestion = question.trim();
+  const safetyFindings = analyzePromptInjectionRisk(cleanQuestion).filter(
+    (finding) => finding.severity === "high",
+  );
+
+  if (safetyFindings.length > 0) {
+    return {
+      question: cleanQuestion,
+      answer:
+        "I cannot follow instruction-override requests or reveal private bot configuration. I am pulling in staff so they can handle this safely.",
+      confidence: 0,
+      shouldEscalate: true,
+      escalationTarget: "staff",
+      escalationReason: "Question matched prompt-injection safety filters.",
+    };
+  }
+
   const ranked = rankKnowledgeEntries(cleanQuestion, entries);
   const best = ranked[0];
   const confidence = best?.confidence ?? 0;

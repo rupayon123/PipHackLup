@@ -119,6 +119,12 @@ Recommended permissions: View Channels, Send Messages, Embed Links, Attach Files
 
 Enable the Guild Members intent. Keep Message Content intent disabled unless you intentionally enable ambient mention Q&A with `PIPHACKLUP_AMBIENT_QA_ENABLED=true`.
 
+## Security Baseline
+
+PipHackLup is built for public hackathon servers, so the codebase includes organizer RBAC, API and bot rate limiting, prompt-injection filtering for staff-trained Q&A, signed Discord dashboard sessions, Dependabot, and a CI secret-pattern scan.
+
+See `docs/security-baseline.md` and `SECURITY.md` before adding new public endpoints, bot commands, or AI-assisted workflows.
+
 ## Status
 
 PipHackLup is in public alpha. The website, repo, slash commands, and install link are live; the next major milestone is a hosted always-on bot process plus production database-backed dashboard flows.

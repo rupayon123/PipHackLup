@@ -5,8 +5,20 @@ import {
   getAppUrl,
   setDiscordSessionCookie,
 } from "@/lib/discord-auth";
+import {
+  buildRateLimitKey,
+  enforceRateLimit,
+  getClientIp,
+  webRateLimitPolicies,
+} from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(request, {
+    key: buildRateLimitKey(["web", "auth-callback", getClientIp(request)]),
+    policy: webRateLimitPolicies.auth,
+  });
+  if (rateLimitResponse) return rateLimitResponse;
+
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const validState = await consumeOauthStateCookie(state);
