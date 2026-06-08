@@ -95,8 +95,8 @@ export default function HomePage() {
               <MessageCircleQuestion aria-hidden size={22} />
               <h3>Staff-trained Q&A</h3>
               <p>
-                Train event details once, answer participant questions
-                instantly, and ping humans when confidence is low.
+                Train event details from Discord or the website, answer
+                questions instantly, and ping humans when confidence is low.
               </p>
             </article>
             <article className="feature">
@@ -127,8 +127,8 @@ export default function HomePage() {
               <LayoutDashboard aria-hidden size={22} />
               <h3>Organizer dashboard</h3>
               <p>
-                Give staff a public web dashboard for queues, teams, moderation,
-                setup, and CSV exports.
+                Give staff a public web dashboard for Q&A training, queues,
+                teams, moderation, setup, and CSV exports.
               </p>
             </article>
           </div>

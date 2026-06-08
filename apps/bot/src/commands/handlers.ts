@@ -23,23 +23,26 @@ import {
   suggestTeamMatches,
   type KnowledgeAnswerResult,
   type KnowledgeEscalationTarget,
+  type KnowledgeAssistantSettings,
   type OnboardingMode,
   type QueueKind,
 } from "@piphacklup/core";
 import {
   createStoredCase,
-  createStoredKnowledgeEntry,
   createStoredTeam,
   createStoredTicket,
-  deleteKnowledgeEntry,
   ensureConfig,
-  ensureKnowledgeSettings,
-  getKnowledgeEntries,
   getProfiles,
   store,
-  updateKnowledgeSettings,
   upsertProfile,
 } from "../lib/store.js";
+import {
+  addTrainingEntry,
+  getTrainingSettings,
+  listTrainingEntries,
+  removeTrainingEntry,
+  saveTrainingSettings,
+} from "../lib/knowledge-store.js";
 
 type SendableChannel = {
   send: (options: MessageCreateOptions) => Promise<unknown>;
@@ -90,11 +93,11 @@ async function handleAsk(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
   const guildId = interaction.guildId!;
-  const settings = ensureKnowledgeSettings(guildId);
+  const settings = await getTrainingSettings(guildId);
   const question = interaction.options.getString("question", true);
   const result = answerHackathonQuestion(
     question,
-    getKnowledgeEntries(guildId),
+    await listTrainingEntries(guildId),
     settings,
   );
   const privateReply =
@@ -127,15 +130,18 @@ async function handleTrain(
   const guildId = interaction.guildId!;
 
   if (subcommand === "add") {
-    const entry = createStoredKnowledgeEntry({
-      guildId,
-      title: interaction.options.getString("title", true),
-      answer: interaction.options.getString("answer", true),
-      tags: splitList(interaction.options.getString("keywords") ?? ""),
-      escalationTarget: (interaction.options.getString("escalate") ??
-        "none") as KnowledgeEscalationTarget,
-      createdBy: interaction.user.id,
-    });
+    const entry = await addTrainingEntry(
+      {
+        guildId,
+        title: interaction.options.getString("title", true),
+        answer: interaction.options.getString("answer", true),
+        tags: splitList(interaction.options.getString("keywords") ?? ""),
+        escalationTarget: (interaction.options.getString("escalate") ??
+          "none") as KnowledgeEscalationTarget,
+        createdBy: interaction.user.id,
+      },
+      interaction.guild?.name ?? "Hackathon",
+    );
 
     await interaction.reply({
       content: `Trained PipHackLup on **${entry.title}** as \`${entry.id}\`.`,
@@ -152,15 +158,20 @@ async function handleTrain(
       interaction.options.getString("details", true),
       defaultEscalation,
     ).slice(0, 25);
-    const entries = parsed.map((entry) =>
-      createStoredKnowledgeEntry({
-        guildId,
-        title: entry.title,
-        answer: entry.answer,
-        tags: entry.tags,
-        escalationTarget: entry.escalationTarget,
-        createdBy: interaction.user.id,
-      }),
+    const entries = await Promise.all(
+      parsed.map((entry) =>
+        addTrainingEntry(
+          {
+            guildId,
+            title: entry.title,
+            answer: entry.answer,
+            tags: entry.tags,
+            escalationTarget: entry.escalationTarget,
+            createdBy: interaction.user.id,
+          },
+          interaction.guild?.name ?? "Hackathon",
+        ),
+      ),
     );
 
     await interaction.reply({
@@ -179,13 +190,17 @@ async function handleTrain(
     const confidence = interaction.options.getInteger("confidence");
     const publicAnswers = interaction.options.getBoolean("public_answers");
 
-    const settings = updateKnowledgeSettings(guildId, {
-      ...(staffRole ? { staffRoleId: staffRole.id } : {}),
-      ...(mentorRole ? { mentorRoleId: mentorRole.id } : {}),
-      ...(helpChannel ? { helpChannelId: helpChannel.id } : {}),
-      ...(confidence !== null ? { minConfidence: confidence } : {}),
-      ...(publicAnswers !== null ? { publicAnswers } : {}),
-    });
+    const settings = await saveTrainingSettings(
+      guildId,
+      interaction.guild?.name ?? "Hackathon",
+      {
+        ...(staffRole ? { staffRoleId: staffRole.id } : {}),
+        ...(mentorRole ? { mentorRoleId: mentorRole.id } : {}),
+        ...(helpChannel ? { helpChannelId: helpChannel.id } : {}),
+        ...(confidence !== null ? { minConfidence: confidence } : {}),
+        ...(publicAnswers !== null ? { publicAnswers } : {}),
+      },
+    );
 
     await interaction.reply({
       content: buildKnowledgeSettingsSummary(settings),
@@ -195,8 +210,8 @@ async function handleTrain(
   }
 
   if (subcommand === "list") {
-    const entries = getKnowledgeEntries(guildId).toSorted((left, right) =>
-      left.title.localeCompare(right.title),
+    const entries = (await listTrainingEntries(guildId)).toSorted(
+      (left, right) => left.title.localeCompare(right.title),
     );
     const lines = entries
       .slice(0, 20)
@@ -215,7 +230,7 @@ async function handleTrain(
   }
 
   const entryId = interaction.options.getString("entry", true);
-  const deleted = deleteKnowledgeEntry(guildId, entryId);
+  const deleted = await removeTrainingEntry(guildId, entryId);
   await interaction.reply({
     content: deleted
       ? `Removed training entry \`${entryId}\`.`
@@ -334,7 +349,7 @@ async function sendKnowledgeEscalation(
 ): Promise<void> {
   const guildId = interaction.guildId!;
   const config = ensureConfig(guildId, interaction.guild?.name);
-  const settings = ensureKnowledgeSettings(guildId);
+  const settings = await getTrainingSettings(guildId);
   const escalationTarget =
     result.escalationTarget === "mentor" ? "mentor" : "staff";
   const roleId =
@@ -412,7 +427,7 @@ async function resolveEscalationChannel(
 }
 
 function buildKnowledgeSettingsSummary(
-  settings: ReturnType<typeof ensureKnowledgeSettings>,
+  settings: KnowledgeAssistantSettings,
 ): string {
   return [
     "PipHackLup Q&A settings saved.",

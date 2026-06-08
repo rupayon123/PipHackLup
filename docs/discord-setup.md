@@ -16,6 +16,7 @@ https://discord.com/oauth2/authorize?client_id=1512918151313231983&scope=bot+app
 4. Copy the application/client ID and bot token into your local `.env.local`.
 5. Use `assets/piphacklup-discord-avatar.png` for the app icon and `assets/piphacklup-banner.png` for the app banner.
 6. Use `assets/piphacklup-social-preview.png` for the GitHub repository social preview image.
+7. In OAuth2 redirects, add `https://piphacklup.vercel.app/api/auth/discord/callback` so the website trainer can link organizer Discord accounts.
 
 Never commit or paste the bot token in chat.
 
@@ -71,8 +72,9 @@ pnpm dev:bot
 2. Run `/setup`.
 3. Run `/train settings` to set the staff role, mentor role, help channel, and confidence threshold.
 4. Run `/train add` or `/train import` with schedule, venue, prizes, judging, team, and rules details.
-5. Ask a participant question with `/ask`.
-6. Run `/onboard checklist`.
-7. Create a profile with `/team profile`.
-8. Create help tickets with `/queue open`.
-9. Create a report with `/mod report`.
+5. Open `https://piphacklup.vercel.app/training`, connect Discord, pick the test server, add a web training entry, and preview an answer.
+6. Ask a participant question with `/ask`.
+7. Run `/onboard checklist`.
+8. Create a profile with `/team profile`.
+9. Create help tickets with `/queue open`.
+10. Create a report with `/mod report`.

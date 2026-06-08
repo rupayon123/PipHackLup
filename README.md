@@ -43,12 +43,13 @@ Brand assets live in `assets/`:
 
 - Guided server setup with roles, channels, queues, moderation logs, and onboarding mode.
 - Staff-trained hackathon Q&A so participants can ask event questions and get instant answers.
+- Discord-linked website training where organizers sign in, pick a managed server, add FAQs, import event details, and preview answers.
 - Human escalation for uncertain, mentor-needed, safety, conduct, judging, and staff-needed questions.
 - Newcomer onboarding for nicknames, roles, hacker profiles, team finding, and help queues.
 - Mentor, tech help, staff follow-up, and judging queues with claim, escalation, close, and transcripts.
 - Team formation with solo profiles, recruiting teams, join requests, matching, and team channels.
 - Moderation reports, staff actions, case history, audit logs, and Discord AutoMod setup guidance.
-- Organizer dashboard for setup, queues, teams, moderation, settings, and CSV import/export.
+- Organizer dashboard for setup, Q&A training, queues, teams, moderation, settings, and CSV import/export.
 
 ## Slash Commands
 
@@ -64,9 +65,9 @@ Brand assets live in `assets/`:
 
 ```text
 apps/bot      Discord gateway bot and slash command handlers
-apps/web      Next.js organizer dashboard
+apps/web      Next.js organizer dashboard and Discord-linked Q&A trainer
 packages/core Product logic shared by bot, dashboard, and tests
-packages/db   Drizzle schema and lazy database client
+packages/db   Drizzle schema, lazy database client, and shared knowledge storage
 packages/ui   Small shared UI helpers
 docs          Setup and deployment documentation
 assets        Public mascot/profile assets
@@ -93,6 +94,22 @@ Register slash commands:
 ```bash
 pnpm --filter @piphacklup/bot deploy:commands
 ```
+
+## Website Q&A Training
+
+Staff can train PipHackLup from `/training` on the website. Discord OAuth links the dashboard to the organizer account, shows servers where that account has Manage Server, and saves Q&A entries/settings for the selected server.
+
+Live training needs these server-side env vars:
+
+```bash
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+NEXTAUTH_URL=https://piphacklup.vercel.app
+NEXTAUTH_SECRET=
+DATABASE_URL=
+```
+
+When `DATABASE_URL` is configured, website training and `/train` slash-command training use the same Postgres-backed knowledge source. Without the database, the page stays in preview mode so organizers can test the workflow safely.
 
 ## Discord Permissions
 

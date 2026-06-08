@@ -18,7 +18,7 @@ Built-in queues: mentor, tech, staff follow-up, judging. Tickets support open, c
 
 ### Staff-Trained Q&A
 
-Staff can train PipHackLup with hackathon details using `/train add` and `/train import`. Participants can ask `/ask` questions in chat, and PipHackLup answers from the staff-approved knowledge base. Low-confidence, mentor-needed, safety, conduct, judging, and staff-needed questions create follow-up tickets and ping the configured role in the help channel.
+Staff can train PipHackLup with hackathon details from Discord using `/train add` and `/train import`, or from the website trainer after linking a Discord organizer account and selecting a managed server. Participants can ask `/ask` questions in chat, and PipHackLup answers from the staff-approved knowledge base. Low-confidence, mentor-needed, safety, conduct, judging, and staff-needed questions create follow-up tickets and ping the configured role in the help channel.
 
 ### Teams
 
@@ -30,7 +30,7 @@ Reports and staff actions create cases. Discord AutoMod templates are suggested 
 
 ### Dashboard
 
-The dashboard shows operational state for setup, queues, teams, moderation, and CSV exports.
+The dashboard shows operational state for setup, Q&A training, queues, teams, moderation, and CSV exports.
 
 ## Not in V1
 

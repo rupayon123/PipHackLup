@@ -1,16 +1,28 @@
-import { BarChart3, ClipboardList, Download, FileText, Shield, Users, Wrench } from "lucide-react";
+import {
+  BarChart3,
+  ClipboardList,
+  Download,
+  FileText,
+  MessageCircleQuestion,
+  Shield,
+  Users,
+  Wrench,
+} from "lucide-react";
 import Link from "next/link";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: BarChart3 },
   { href: "/setup", label: "Setup", icon: Wrench },
+  { href: "/training", label: "Q&A Training", icon: MessageCircleQuestion },
   { href: "/queues", label: "Queues", icon: ClipboardList },
   { href: "/teams", label: "Teams", icon: Users },
   { href: "/moderation", label: "Moderation", icon: Shield },
-  { href: "/privacy", label: "Privacy", icon: FileText }
+  { href: "/privacy", label: "Privacy", icon: FileText },
 ];
 
-export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
+export function AppShell({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="shell">
       <aside className="sidebar">

@@ -1,8 +1,18 @@
-import { ClipboardList, Download, Settings } from "lucide-react";
+import {
+  ClipboardList,
+  Download,
+  MessageCircleQuestion,
+  Settings,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { MetricCard } from "@/components/MetricCard";
 import { PageHeader } from "@/components/PageHeader";
-import { demoCases, demoMembers, demoTeams, demoTickets } from "@/lib/demo-data";
+import {
+  demoCases,
+  demoMembers,
+  demoTeams,
+  demoTickets,
+} from "@/lib/demo-data";
 
 export default function DashboardPage() {
   return (
@@ -17,6 +27,10 @@ export default function DashboardPage() {
               <Settings aria-hidden size={16} />
               Setup
             </a>
+            <a className="button" href="/training">
+              <MessageCircleQuestion aria-hidden size={16} />
+              Train Q&A
+            </a>
             <a className="button" href="/api/export">
               <Download aria-hidden size={16} />
               CSV
@@ -26,10 +40,26 @@ export default function DashboardPage() {
       />
 
       <div className="grid metrics">
-        <MetricCard label="Participants" value={String(demoMembers.length)} detail="Profiles in the matching pool" />
-        <MetricCard label="Open tickets" value={String(demoTickets.length)} detail="Mentor, tech, and judging" />
-        <MetricCard label="Recruiting teams" value={String(demoTeams.length)} detail="Teams still looking for hackers" />
-        <MetricCard label="Open cases" value={String(demoCases.length)} detail="Reports awaiting staff review" />
+        <MetricCard
+          label="Participants"
+          value={String(demoMembers.length)}
+          detail="Profiles in the matching pool"
+        />
+        <MetricCard
+          label="Open tickets"
+          value={String(demoTickets.length)}
+          detail="Mentor, tech, and judging"
+        />
+        <MetricCard
+          label="Recruiting teams"
+          value={String(demoTeams.length)}
+          detail="Teams still looking for hackers"
+        />
+        <MetricCard
+          label="Open cases"
+          value={String(demoCases.length)}
+          detail="Reports awaiting staff review"
+        />
       </div>
 
       <div className="grid two" style={{ marginTop: 16 }}>
@@ -66,7 +96,10 @@ export default function DashboardPage() {
               </span>
               <div>
                 <strong>Every 15 minutes</strong>
-                <div className="small">Clear escalated mentor/tech tickets before they age into event-wide blockers.</div>
+                <div className="small">
+                  Clear escalated mentor/tech tickets before they age into
+                  event-wide blockers.
+                </div>
               </div>
               <span className="badge amber">Live</span>
             </div>
@@ -76,7 +109,9 @@ export default function DashboardPage() {
               </span>
               <div>
                 <strong>Before judging</strong>
-                <div className="small">Export teams and verify every group has a demo queue status.</div>
+                <div className="small">
+                  Export teams and verify every group has a demo queue status.
+                </div>
               </div>
               <span className="badge green">Ready</span>
             </div>

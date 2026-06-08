@@ -277,6 +277,134 @@ textarea {
   color: var(--blue);
 }
 
+.training-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.training-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.training-panel.wide {
+  grid-column: 1 / -1;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 11px;
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.field textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-row,
+.status-strip,
+.toggle-row,
+.answer-preview,
+.mini-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-row {
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.avatar.fallback {
+  display: grid;
+  place-items: center;
+  background: #e0f2fe;
+  color: #075985;
+  font-weight: 900;
+}
+
+.status-strip,
+.mini-status {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 10px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.status-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.toggle-row {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.answer-preview {
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 14px;
+}
+
+.answer-preview p {
+  margin: 6px 0;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.button.full {
+  width: 100%;
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -303,8 +431,15 @@ textarea {
   }
 
   .grid.metrics,
-  .grid.two {
+  .grid.two,
+  .training-grid,
+  .status-cards,
+  .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .training-panel.wide {
+    grid-column: auto;
   }
 }
 

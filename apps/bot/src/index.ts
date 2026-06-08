@@ -11,12 +11,11 @@ import {
 import { answerHackathonQuestion } from "@piphacklup/core";
 import { handleChatInput } from "./commands/handlers.js";
 import { getBotEnv } from "./env.js";
+import { createStoredTicket, ensureConfig } from "./lib/store.js";
 import {
-  createStoredTicket,
-  ensureConfig,
-  ensureKnowledgeSettings,
-  getKnowledgeEntries,
-} from "./lib/store.js";
+  getTrainingSettings,
+  listTrainingEntries,
+} from "./lib/knowledge-store.js";
 
 const env = getBotEnv();
 
@@ -78,10 +77,10 @@ client.on(Events.MessageCreate, async (message) => {
     return;
   }
 
-  const settings = ensureKnowledgeSettings(message.guildId);
+  const settings = await getTrainingSettings(message.guildId);
   const result = answerHackathonQuestion(
     question,
-    getKnowledgeEntries(message.guildId),
+    await listTrainingEntries(message.guildId),
     settings,
   );
   const embed = new EmbedBuilder()

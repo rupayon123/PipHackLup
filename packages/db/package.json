@@ -6,15 +6,16 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm --filter @piphacklup/core build && tsc -p tsconfig.json",
     "check": "pnpm typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "lint": "pnpm typecheck",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "pnpm --filter @piphacklup/core build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@piphacklup/core": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
     "drizzle-orm": "^0.45.2"
   },

@@ -5,18 +5,19 @@
   "private": true,
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm --filter @piphacklup/db build && tsc -p tsconfig.json",
     "check": "pnpm typecheck",
     "deploy:commands": "tsx src/deploy-commands.ts",
     "dev": "tsx watch src/index.ts",
     "lint": "pnpm typecheck",
-    "predev": "pnpm --filter @piphacklup/core build",
+    "predev": "pnpm --filter @piphacklup/db build",
     "start": "node dist/index.js",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "pnpm --filter @piphacklup/core build && tsc -p tsconfig.json --noEmit"
+    "typecheck": "pnpm --filter @piphacklup/db build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@piphacklup/core": "workspace:*",
+    "@piphacklup/db": "workspace:*",
     "discord.js": "^14.26.4",
     "dotenv": "^17.2.3"
   },

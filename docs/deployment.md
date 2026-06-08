@@ -20,7 +20,7 @@ Environment variables:
 - `DISCORD_CLIENT_ID`
 - `DISCORD_CLIENT_SECRET`
 
-The current dashboard uses demo data until the database-backed routes are wired for production.
+The `/training` page uses Discord OAuth to show the connected organizer account and the servers they can manage. With `DATABASE_URL` configured, website training and `/train` slash-command training share the same Postgres-backed Q&A entries and escalation settings. Without `DATABASE_URL`, the trainer stays in preview mode.
 
 ## Database: Neon Free
 

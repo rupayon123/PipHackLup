@@ -35,6 +35,9 @@ importers:
       '@piphacklup/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@piphacklup/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       discord.js:
         specifier: ^14.26.4
         version: 14.26.4
@@ -106,6 +109,9 @@ importers:
       '@neondatabase/serverless':
         specifier: ^1.0.2
         version: 1.1.0
+      '@piphacklup/core':
+        specifier: workspace:*
+        version: link:../core
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@neondatabase/serverless@1.1.0)
