@@ -12,7 +12,6 @@ export function ThemeToggle({
   theme: DashboardTheme;
 }>) {
   const dark = theme === "dark";
-  const Icon = dark ? Sun : Moon;
 
   return (
     <button
@@ -25,8 +24,10 @@ export function ThemeToggle({
       onClick={onToggle}
       type="button"
     >
-      <Icon aria-hidden size={17} />
-      <span>{dark ? "Light" : "Dark"}</span>
+      <Moon aria-hidden className="theme-icon theme-icon-dark" size={17} />
+      <Sun aria-hidden className="theme-icon theme-icon-light" size={17} />
+      <span className="theme-label theme-label-dark">Dark</span>
+      <span className="theme-label theme-label-light">Light</span>
     </button>
   );
 }
