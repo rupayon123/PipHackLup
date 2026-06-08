@@ -67,6 +67,9 @@ Required bot env:
 - `DISCORD_CLIENT_ID`
 - `DATABASE_URL`
 - `PORT=8787`
+- `PIPHACKLUP_AMBIENT_QA_ENABLED=false`
+
+Keep ambient Q&A disabled unless you have enabled the Discord Message Content intent and want the bot to answer when mentioned in normal chat messages. Slash-command Q&A through `/ask` works without Message Content intent.
 
 Health check:
 

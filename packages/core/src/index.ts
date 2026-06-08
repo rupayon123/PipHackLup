@@ -1,5 +1,6 @@
 export * from "./csv.js";
 export * from "./ids.js";
+export * from "./knowledge.js";
 export * from "./moderation.js";
 export * from "./onboarding.js";
 export * from "./queues.js";

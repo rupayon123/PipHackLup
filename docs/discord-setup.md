@@ -21,7 +21,13 @@ Never commit or paste the bot token in chat.
 
 ## 2. Enable intents
 
-Enable the Guild Members intent. Leave Message Content intent disabled for v1.
+Enable the Guild Members intent.
+
+Leave Message Content intent disabled for slash-command Q&A. If you want PipHackLup to answer when participants mention it in a normal chat message, enable Message Content intent in the Developer Portal and set:
+
+```bash
+PIPHACKLUP_AMBIENT_QA_ENABLED=true
+```
 
 ## 3. Invite permissions
 
@@ -63,7 +69,10 @@ pnpm dev:bot
 
 1. Invite the bot to a new test server.
 2. Run `/setup`.
-3. Run `/onboard checklist`.
-4. Create a profile with `/team profile`.
-5. Create help tickets with `/queue open`.
-6. Create a report with `/mod report`.
+3. Run `/train settings` to set the staff role, mentor role, help channel, and confidence threshold.
+4. Run `/train add` or `/train import` with schedule, venue, prizes, judging, team, and rules details.
+5. Ask a participant question with `/ask`.
+6. Run `/onboard checklist`.
+7. Create a profile with `/team profile`.
+8. Create help tickets with `/queue open`.
+9. Create a report with `/mod report`.

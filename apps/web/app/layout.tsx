@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s | PipHackLup",
   },
   description:
-    "PipHackLup is a hackathon Discord bot for onboarding, mentor queues, team formation, moderation cases, AutoMod setup, and organizer dashboards.",
+    "PipHackLup is a hackathon Discord bot for staff-trained Q&A, onboarding, mentor queues, team formation, moderation cases, AutoMod setup, and organizer dashboards.",
   keywords: [
     "PipHackLup",
     "hackathon Discord bot",
@@ -20,6 +20,8 @@ export const metadata: Metadata = {
     "Discord moderation bot",
     "Discord onboarding bot",
     "hackathon organizer dashboard",
+    "hackathon AI assistant",
+    "hackathon FAQ bot",
   ],
   authors: [{ name: "Rupayon Haldar", url: "https://github.com/rupayon123" }],
   creator: "Rupayon Haldar",
@@ -33,7 +35,7 @@ export const metadata: Metadata = {
     siteName: "PipHackLup",
     title: "PipHackLup - Hackathon Discord Bot",
     description:
-      "Run hackathon Discord servers with guided onboarding, queues, team matching, moderation cases, and a public organizer dashboard.",
+      "Run hackathon Discord servers with staff-trained Q&A, guided onboarding, queues, team matching, moderation cases, and a public organizer dashboard.",
     images: [
       {
         url: "/piphacklup-site-hero.png",
@@ -47,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "PipHackLup - Hackathon Discord Bot",
     description:
-      "A public hackathon Discord bot for onboarding, queues, team formation, moderation, and dashboards.",
+      "A public hackathon Discord bot for staff-trained Q&A, onboarding, queues, team formation, moderation, and dashboards.",
     images: ["/piphacklup-site-hero.png"],
   },
   icons: {

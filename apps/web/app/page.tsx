@@ -3,6 +3,7 @@ import {
   Bot,
   Github,
   LayoutDashboard,
+  MessageCircleQuestion,
   Shield,
   Ticket,
   Users,
@@ -31,7 +32,7 @@ export default function HomePage() {
       priceCurrency: "USD",
     },
     description:
-      "PipHackLup is a hackathon Discord bot for onboarding, mentor queues, team formation, moderation cases, AutoMod setup, and organizer dashboards.",
+      "PipHackLup is a hackathon Discord bot for staff-trained Q&A, onboarding, mentor queues, team formation, moderation cases, AutoMod setup, and organizer dashboards.",
   };
 
   return (
@@ -68,8 +69,8 @@ export default function HomePage() {
             <h1>PipHackLup</h1>
             <p>
               A public Discord bot for hackathon organizers who need smoother
-              onboarding, mentor queues, team formation, moderation workflows,
-              AutoMod setup, and an event-day dashboard.
+              onboarding, staff-trained Q&A, mentor queues, team formation,
+              moderation workflows, AutoMod setup, and an event-day dashboard.
             </p>
             <div className="button-row">
               <a className="button primary large" href={installUrl}>
@@ -90,6 +91,14 @@ export default function HomePage() {
             <h2>Everything a hackathon Discord server needs in one bot</h2>
           </div>
           <div className="feature-grid">
+            <article className="feature">
+              <MessageCircleQuestion aria-hidden size={22} />
+              <h3>Staff-trained Q&A</h3>
+              <p>
+                Train event details once, answer participant questions
+                instantly, and ping humans when confidence is low.
+              </p>
+            </article>
             <article className="feature">
               <Ticket aria-hidden size={22} />
               <h3>Mentor and tech queues</h3>

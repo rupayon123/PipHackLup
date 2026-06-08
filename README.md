@@ -42,17 +42,21 @@ Brand assets live in `assets/`:
 ## What It Does
 
 - Guided server setup with roles, channels, queues, moderation logs, and onboarding mode.
+- Staff-trained hackathon Q&A so participants can ask event questions and get instant answers.
+- Human escalation for uncertain, mentor-needed, safety, conduct, judging, and staff-needed questions.
 - Newcomer onboarding for nicknames, roles, hacker profiles, team finding, and help queues.
-- Mentor, tech help, and judging queues with claim, escalation, close, and transcripts.
+- Mentor, tech help, staff follow-up, and judging queues with claim, escalation, close, and transcripts.
 - Team formation with solo profiles, recruiting teams, join requests, matching, and team channels.
 - Moderation reports, staff actions, case history, audit logs, and Discord AutoMod setup guidance.
 - Organizer dashboard for setup, queues, teams, moderation, settings, and CSV import/export.
 
 ## Slash Commands
 
+- `/ask`: ask PipHackLup a staff-trained question about the hackathon.
+- `/train`: staff-only training for event details, FAQs, escalation rules, roles, and help channels.
 - `/setup`: guided server setup for roles, channels, queues, moderation logs, and onboarding.
 - `/onboard`: newcomer checklist for nickname, roles, profile, team, and help.
-- `/queue`: mentor, tech help, and judging/demo queues.
+- `/queue`: mentor, tech help, staff follow-up, and judging/demo queues.
 - `/team`: solo profiles, recruiting teams, join requests, matching, and team channels.
 - `/mod`: reports, warns, timeouts, case history, and audit logs.
 
@@ -96,7 +100,7 @@ Required scopes: `bot`, `applications.commands`.
 
 Recommended permissions: View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Manage Roles, Manage Nicknames, Manage Channels, Manage Threads, Moderate Members, Manage Guild, and optional Kick/Ban.
 
-Enable the Guild Members intent. Keep Message Content intent disabled for v1.
+Enable the Guild Members intent. Keep Message Content intent disabled unless you intentionally enable ambient mention Q&A with `PIPHACKLUP_AMBIENT_QA_ENABLED=true`.
 
 ## Status
 

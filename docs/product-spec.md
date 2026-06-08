@@ -14,7 +14,11 @@ Guided or gated mode. The checklist covers rules, nickname, roles, profile, and 
 
 ### Queues
 
-Built-in queues: mentor, tech, judging. Tickets support open, claim, escalate, close, and transcript references.
+Built-in queues: mentor, tech, staff follow-up, judging. Tickets support open, claim, escalate, close, and transcript references.
+
+### Staff-Trained Q&A
+
+Staff can train PipHackLup with hackathon details using `/train add` and `/train import`. Participants can ask `/ask` questions in chat, and PipHackLup answers from the staff-approved knowledge base. Low-confidence, mentor-needed, safety, conduct, judging, and staff-needed questions create follow-up tickets and ping the configured role in the help channel.
 
 ### Teams
 
@@ -32,5 +36,5 @@ The dashboard shows operational state for setup, queues, teams, moderation, and 
 
 - Message Content intent-based custom spam scanning.
 - Paid premium features.
-- AI triage.
+- Generative AI answers from external model providers.
 - App Directory/discovery submission.

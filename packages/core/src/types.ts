@@ -1,12 +1,22 @@
 export type Snowflake = string;
 
-export type QueueKind = "mentor" | "tech" | "judging";
+export type QueueKind = "mentor" | "tech" | "judging" | "staff";
 
-export type QueueStatus = "open" | "claimed" | "escalated" | "closed" | "canceled";
+export type QueueStatus =
+  | "open"
+  | "claimed"
+  | "escalated"
+  | "closed"
+  | "canceled";
 
 export type OnboardingMode = "guided" | "gated";
 
-export type TeamStatus = "solo" | "looking" | "recruiting" | "full" | "assigned";
+export type TeamStatus =
+  | "solo"
+  | "looking"
+  | "recruiting"
+  | "full"
+  | "assigned";
 
 export type ModerationAction =
   | "report"
@@ -109,6 +119,38 @@ export interface AuditEvent {
   targetId: string;
   metadata: Record<string, string | number | boolean>;
   createdAt: string;
+}
+
+export type KnowledgeEscalationTarget = "none" | "mentor" | "staff";
+
+export interface HackathonKnowledgeEntry {
+  id: string;
+  guildId: Snowflake;
+  title: string;
+  answer: string;
+  tags: string[];
+  escalationTarget: KnowledgeEscalationTarget;
+  createdBy: Snowflake;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KnowledgeAssistantSettings {
+  minConfidence: number;
+  publicAnswers: boolean;
+  staffRoleId?: Snowflake;
+  mentorRoleId?: Snowflake;
+  helpChannelId?: Snowflake;
+}
+
+export interface KnowledgeAnswerResult {
+  question: string;
+  answer: string;
+  confidence: number;
+  matchedEntry?: HackathonKnowledgeEntry;
+  shouldEscalate: boolean;
+  escalationTarget: KnowledgeEscalationTarget;
+  escalationReason: string;
 }
 
 export interface OnboardingState {
