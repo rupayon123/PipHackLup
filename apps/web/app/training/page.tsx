@@ -1,4 +1,5 @@
 import { Bot, Database, LogIn, ServerCog } from "lucide-react";
+import { isDatabaseConfigured } from "@piphacklup/db";
 import { AppShell } from "@/components/AppShell";
 import { MetricCard } from "@/components/MetricCard";
 import { PageHeader } from "@/components/PageHeader";
@@ -14,7 +15,7 @@ const installUrl =
 export default async function TrainingPage() {
   const session = await readDiscordSession();
   const authReady = isDiscordAuthConfigured();
-  const databaseReady = Boolean(process.env.DATABASE_URL);
+  const databaseReady = isDatabaseConfigured();
 
   return (
     <AppShell>

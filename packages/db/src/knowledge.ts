@@ -27,7 +27,12 @@ export type KnowledgeSettingsPatch = Partial<
 };
 
 export function isDatabaseConfigured(): boolean {
-  return Boolean(process.env.DATABASE_URL);
+  const databaseUrl = process.env.DATABASE_URL;
+  return Boolean(
+    databaseUrl &&
+    !databaseUrl.includes("user:password@host") &&
+    !databaseUrl.includes("example.com"),
+  );
 }
 
 export async function ensureKnowledgeGuild(
