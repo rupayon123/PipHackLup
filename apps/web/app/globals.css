@@ -445,14 +445,15 @@ textarea {
 
 .site {
   min-height: 100vh;
-  background: #071733;
+  background: #061423;
+  color: white;
 }
 
 .hero {
   position: relative;
-  min-height: 86vh;
+  min-height: 88vh;
   overflow: hidden;
-  background: #071733;
+  background: #061423;
   color: white;
 }
 
@@ -460,13 +461,19 @@ textarea {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(
-      90deg,
-      rgba(7, 23, 51, 0.8) 0%,
-      rgba(7, 23, 51, 0.54) 42%,
-      rgba(7, 23, 51, 0.08) 100%
-    ),
+    linear-gradient(90deg, rgba(6, 20, 35, 0.92), rgba(6, 20, 35, 0.28)),
     url("/piphacklup-site-hero.png") center / cover no-repeat;
+}
+
+.hero-bg::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(rgba(142, 231, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(142, 231, 255, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.72;
 }
 
 .site-nav {
@@ -490,16 +497,16 @@ textarea {
   z-index: 1;
   display: grid;
   align-content: center;
-  width: min(760px, calc(100% - 32px));
-  min-height: calc(86vh - 84px);
+  width: min(700px, calc(100% - 32px));
+  min-height: calc(88vh - 84px);
   margin: 0 auto;
   margin-left: max(16px, calc((100% - 1120px) / 2));
-  padding-bottom: 56px;
+  padding: 56px 0 64px;
 }
 
 .hero-content h1 {
   margin: 0;
-  font-size: clamp(48px, 9vw, 104px);
+  font-size: 96px;
   line-height: 0.95;
   letter-spacing: 0;
 }
@@ -507,7 +514,7 @@ textarea {
 .hero-content p {
   max-width: 650px;
   margin: 18px 0 0;
-  color: #d8f5ff;
+  color: #d9f7ff;
   font-size: 19px;
   line-height: 1.55;
 }
@@ -521,52 +528,172 @@ textarea {
   padding-inline: 16px;
 }
 
-.public-section {
+.hero-proof {
   display: grid;
-  grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
-  gap: 28px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 610px;
+  margin: 30px 0 0;
+}
+
+.hero-proof div {
+  border: 2px solid rgba(142, 231, 255, 0.42);
+  border-radius: 8px;
+  background: #081c30;
+  padding: 13px 14px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.22);
+}
+
+.hero-proof dt {
+  color: #f8f4df;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.hero-proof dd {
+  margin: 5px 0 0;
+  color: #9eeaff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ops-board {
+  display: grid;
+  grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+  gap: 34px;
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 48px 0 56px;
+  padding: 54px 0 60px;
   color: white;
 }
 
-.public-section h2,
+.ops-intro {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
+.ops-intro h2,
+.radio-room h2,
+.operator-strip h2,
 .public-band h2 {
   margin: 0;
-  font-size: 30px;
+  font-size: 34px;
   line-height: 1.15;
   letter-spacing: 0;
 }
 
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.feature {
-  min-height: 220px;
-  border: 1px solid rgba(176, 230, 255, 0.24);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 16px;
-}
-
-.feature svg {
-  color: #9eeaff;
-}
-
-.feature h3 {
-  margin: 18px 0 8px;
-  font-size: 17px;
-}
-
-.feature p,
+.ops-intro p,
+.radio-room p,
 .public-band p {
-  margin: 0;
+  margin: 14px 0 0;
   color: #bfeaff;
-  line-height: 1.55;
+  line-height: 1.6;
+}
+
+.dispatch-list {
+  display: grid;
+  gap: 10px;
+}
+
+.dispatch-row {
+  display: grid;
+  grid-template-columns: 48px minmax(170px, 0.82fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  border: 2px solid #1e5d79;
+  border-radius: 8px;
+  background: #09243b;
+  padding: 14px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.24);
+}
+
+.dispatch-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 2px solid #8ee7ff;
+  border-radius: 8px;
+  background: #f8f4df;
+  color: #082033;
+}
+
+.dispatch-row h3 {
+  margin: 3px 0 0;
+  color: #f8f4df;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.dispatch-row p {
+  margin: 0;
+  color: #c8f261;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.dispatch-row > p:last-child {
+  color: #bfeaff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.radio-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
+  gap: 30px;
+  align-items: center;
+  border-block: 1px solid rgba(142, 231, 255, 0.2);
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 50px 0;
+}
+
+.radio-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.radio-stack div,
+.operator-strip li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 2px solid #264a57;
+  border-radius: 8px;
+  background: #f8f4df;
+  padding: 12px 14px;
+  color: #061423;
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.24);
+}
+
+.radio-stack svg,
+.operator-strip svg {
+  flex: 0 0 auto;
+  color: #1e78b5;
+}
+
+.operator-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 28px;
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 54px 0 22px;
+}
+
+.operator-strip ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .public-band {
@@ -577,7 +704,7 @@ textarea {
   border-top: 1px solid rgba(176, 230, 255, 0.18);
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 34px 0 46px;
+  padding: 34px 0 50px;
   color: white;
 }
 
@@ -592,26 +719,53 @@ textarea {
     flex-direction: column;
   }
 
+  .hero-content h1 {
+    font-size: 58px;
+  }
+
   .hero-content {
     margin-inline: auto;
+    min-height: auto;
+    padding: 42px 0 36px;
   }
 
   .hero-bg {
     background:
-      linear-gradient(
-        90deg,
-        rgba(7, 23, 51, 0.92) 0%,
-        rgba(7, 23, 51, 0.76) 58%,
-        rgba(7, 23, 51, 0.26) 100%
-      ),
+      linear-gradient(90deg, rgba(6, 20, 35, 0.96), rgba(6, 20, 35, 0.72)),
       url("/piphacklup-site-hero.png") 64% center / cover no-repeat;
   }
 
-  .public-section {
+  .hero-proof,
+  .ops-board,
+  .radio-room,
+  .operator-strip,
+  .operator-strip ol {
     grid-template-columns: 1fr;
   }
 
-  .feature-grid {
+  .ops-intro {
+    position: static;
+  }
+
+  .dispatch-row {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .hero-proof {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .hero-proof div {
+    padding: 9px 8px;
+  }
+
+  .hero-proof dt {
+    font-size: 20px;
+  }
+
+  .hero-proof dd {
+    font-size: 10px;
   }
 }
