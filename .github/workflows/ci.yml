@@ -18,5 +18,11 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Secret pattern scan
+        run: |
+          if git grep -InE '([A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}|github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{32,})' -- ':!*.png' ':!*.jpg' ':!*.webp' ':!*.gif'; then
+            echo "Potential secret-like token found. Remove it before pushing."
+            exit 1
+          fi
       - run: pnpm check
       - run: pnpm test
