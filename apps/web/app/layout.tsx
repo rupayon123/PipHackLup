@@ -72,7 +72,25 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+try {
+  var key = "piphacklup-dashboard-theme";
+  var saved = window.localStorage.getItem(key);
+  var theme = saved === "dark" || saved === "light"
+    ? saved
+    : window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  document.documentElement.dataset.dashboardTheme = theme;
+} catch (_) {}
+`,
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

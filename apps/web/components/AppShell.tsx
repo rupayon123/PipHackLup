@@ -11,6 +11,7 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -32,6 +33,7 @@ export function AppShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const [theme, setTheme] = useState<DashboardTheme>("light");
+  const pathname = usePathname();
 
   useEffect(() => {
     const saved = window.localStorage.getItem(themeStorageKey);
@@ -42,12 +44,14 @@ export function AppShell({
           ? "dark"
           : "light";
     setTheme(initial);
+    document.documentElement.dataset.dashboardTheme = initial;
   }, []);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     window.localStorage.setItem(themeStorageKey, next);
+    document.documentElement.dataset.dashboardTheme = next;
   }
 
   return (
@@ -63,20 +67,32 @@ export function AppShell({
         <nav className="nav" aria-label="Main navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const active =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+
             return (
-              <Link key={item.href} href={item.href}>
+              <Link
+                aria-current={active ? "page" : undefined}
+                className={active ? "active" : undefined}
+                key={item.href}
+                href={item.href}
+              >
                 <Icon aria-hidden size={18} />
-                {item.label}
+                <span>{item.label}</span>
               </Link>
             );
           })}
           <a href="/api/export" title="Download CSV export">
             <Download aria-hidden size={18} />
-            Export
+            <span>Export</span>
           </a>
         </nav>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">
+        <div className="page-surface" key={pathname}>
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
