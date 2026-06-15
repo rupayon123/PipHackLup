@@ -20,7 +20,7 @@
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
-    "@types/node": "^25.0.1",
+    "@types/node": "^25.9.3",
     "drizzle-kit": "^0.31.8",
     "typescript": "^6.0.3",
     "vitest": "^4.0.15"
