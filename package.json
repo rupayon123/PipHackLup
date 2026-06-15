@@ -26,7 +26,7 @@
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
-    "@types/node": "^25.0.1",
+    "@types/node": "^25.9.3",
     "next": "^16.2.7",
     "prettier": "^3.7.4",
     "react": "^19.2.7",
