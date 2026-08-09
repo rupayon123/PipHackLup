@@ -43,8 +43,8 @@ jobs:
         run: docker build --file apps/bot/Dockerfile --tag piphacklup-bot:ci .
       - name: Smoke-test production bot image
         run: |
-          docker run --rm --entrypoint node piphacklup-bot:ci --check apps/bot/dist/index.js
-          docker run --rm --entrypoint node piphacklup-bot:ci --input-type=module --eval "await Promise.all([import('./apps/bot/dist/lib/health.js'), import('@piphacklup/core'), import('@piphacklup/db')])"
+          docker run --rm --workdir /app/apps/bot --entrypoint node piphacklup-bot:ci --check dist/index.js
+          docker run --rm --workdir /app/apps/bot --entrypoint node piphacklup-bot:ci --input-type=module --eval "await Promise.all([import('./dist/lib/health.js'), import('@piphacklup/core'), import('@piphacklup/db')])"
 
   browser:
     runs-on: ubuntu-latest
