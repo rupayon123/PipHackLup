@@ -4,7 +4,7 @@ import {
   ClipboardCheck,
   Clock3,
   Github,
-  LayoutDashboard,
+  LogIn,
   MessageCircleQuestion,
   Radio,
   Shield,
@@ -14,8 +14,7 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const installUrl =
-    "https://discord.com/oauth2/authorize?client_id=1512918151313231983&scope=bot+applications.commands&permissions=1117094267958";
+  const signInUrl = "/api/auth/discord/start";
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -62,15 +61,15 @@ export default function HomePage() {
       icon: Users,
       label: "Team table",
       title: "Solo builders find the right group faster.",
-      copy: "Profiles, recruiting teams, join requests, and matching keep team formation from turning into a chaotic introductions channel.",
+      copy: "Profiles, recruiting teams, team listings, and matching keep team formation from turning into a chaotic introductions channel.",
     },
   ];
 
   const operatorSteps = [
-    "Create the Discord app under your account.",
-    "Invite PipHackLup with the required bot permissions.",
-    "Run setup, choose roles and channels, and enable onboarding.",
-    "Train event details before doors open.",
+    "Sign in with the Discord account you already use.",
+    "Choose a server you own or have permission to manage.",
+    "Add PipHackLup to that server with the guided install.",
+    "Run setup, add event details, and try a participant check-in.",
   ];
 
   return (
@@ -84,20 +83,15 @@ export default function HomePage() {
           <div className="hero-bg" aria-hidden="true" />
           <nav className="site-nav" aria-label="Public navigation">
             <a className="brand public" href="/">
-              <span className="brand-mark">P</span>
+              <span className="brand-mark" aria-hidden>
+                P
+              </span>
               <span>PipHackLup</span>
             </a>
             <div className="button-row">
-              <a
-                className="button"
-                href="https://github.com/rupayon123/PipHackLup"
-              >
-                <Github aria-hidden size={16} />
-                GitHub
-              </a>
-              <a className="button primary" href={installUrl}>
-                <Bot aria-hidden size={16} />
-                Add to Discord
+              <a className="button primary" href={signInUrl}>
+                <LogIn aria-hidden size={16} />
+                Organizer sign in
               </a>
             </div>
           </nav>
@@ -111,40 +105,43 @@ export default function HomePage() {
               repeat traffic and calls staff when a human needs the wheel.
             </p>
             <div className="button-row">
-              <a className="button primary large" href={installUrl}>
-                Add to Discord
+              <a className="button primary large" href={signInUrl}>
+                Continue with Discord
                 <ArrowRight aria-hidden size={18} />
               </a>
-              <a className="button large" href="/dashboard">
-                Open dashboard
-                <LayoutDashboard aria-hidden size={18} />
+              <a className="button large" href="#event-day">
+                See how it helps
               </a>
             </div>
             <dl className="hero-proof" aria-label="Event day support">
               <div>
-                <dt>100-500</dt>
-                <dd>person events</dd>
-              </div>
-              <div>
                 <dt>4</dt>
-                <dd>queue types</dd>
+                <dd>help lines</dd>
               </div>
               <div>
-                <dt>0</dt>
-                <dd>secret tokens in repo</dd>
+                <dt>1</dt>
+                <dd>guided setup</dd>
+              </div>
+              <div>
+                <dt>Human</dt>
+                <dd>fallback built in</dd>
               </div>
             </dl>
           </div>
         </section>
 
-        <section className="ops-board" aria-labelledby="ops-heading">
+        <section
+          className="ops-board"
+          id="event-day"
+          aria-labelledby="ops-heading"
+        >
           <div className="ops-intro">
             <p className="eyebrow">Event-day dispatch board</p>
-            <h2 id="ops-heading">Built for the moments organizers dread</h2>
+            <h2 id="ops-heading">Built for the busiest parts of event day</h2>
             <p>
-              PipHackLup is not a shiny dashboard costume. It is a Discord
-              operator that helps staff absorb the first wave of confusion,
-              route the important stuff, and keep receipts.
+              PipHackLup gives staff a calm place to handle the first wave of
+              questions, route the important requests, and see what still needs
+              a person.
             </p>
           </div>
           <div className="dispatch-list">
@@ -221,8 +218,8 @@ export default function HomePage() {
             </p>
           </div>
           <div className="button-row">
-            <a className="button primary large" href={installUrl}>
-              Add PipHackLup
+            <a className="button primary large" href={signInUrl}>
+              Continue with Discord
               <Bot aria-hidden size={18} />
             </a>
             <a
@@ -234,6 +231,18 @@ export default function HomePage() {
             </a>
           </div>
         </section>
+
+        <footer className="site-footer">
+          <span>PipHackLup by Rupayon Haldar</span>
+          <nav aria-label="Footer navigation">
+            <a href="/privacy">Privacy</a>
+            <a href="/terms">Terms</a>
+            <a href="https://github.com/rupayon123/PipHackLup/issues">
+              Support
+            </a>
+            <a href="https://github.com/rupayon123/PipHackLup">GitHub</a>
+          </nav>
+        </footer>
       </main>
     </>
   );

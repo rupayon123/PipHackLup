@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { sql } from "drizzle-orm";
 import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import * as schema from "./schema.js";
 
@@ -10,10 +11,17 @@ export function getDb(): PipHackLupDb {
   if (!db) {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
-      throw new Error("DATABASE_URL is required to initialize the PipHackLup database client.");
+      throw new Error(
+        "DATABASE_URL is required to initialize the PipHackLup database client.",
+      );
     }
     db = drizzle(neon(databaseUrl), { schema });
   }
 
   return db;
+}
+
+/** Verify that the configured database can execute a query, even when no guild exists yet. */
+export async function pingDatabase(db: PipHackLupDb = getDb()): Promise<void> {
+  await db.execute(sql`select 1 as "ok"`);
 }

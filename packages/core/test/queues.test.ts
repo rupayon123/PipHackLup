@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { claimTicket, closeTicket, createQueueTicket, estimateWaitMinutes, orderQueue } from "../src/index.js";
+import {
+  claimTicket,
+  closeTicket,
+  createQueueTicket,
+  estimateWaitMinutes,
+  orderQueue,
+} from "../src/index.js";
 
 describe("queues", () => {
   it("orders escalated and higher-priority tickets before normal requests", () => {
@@ -10,7 +16,7 @@ describe("queues", () => {
       topic: "CSS",
       description: "Help",
       priority: 0,
-      now: "2026-06-06T10:00:00.000Z"
+      now: "2026-06-06T10:00:00.000Z",
     });
     const high = createQueueTicket({
       guildId: "g1",
@@ -19,15 +25,17 @@ describe("queues", () => {
       topic: "Deploy",
       description: "Help",
       priority: 3,
-      now: "2026-06-06T10:02:00.000Z"
+      now: "2026-06-06T10:02:00.000Z",
     });
-    const escalated = { ...low, id: "ticket_escalated", status: "escalated" as const };
+    const escalated = {
+      ...low,
+      id: "ticket_escalated",
+      status: "escalated" as const,
+    };
 
-    expect(orderQueue([low, high, escalated]).map((ticket) => ticket.id)).toEqual([
-      "ticket_escalated",
-      high.id,
-      low.id
-    ]);
+    expect(
+      orderQueue([low, high, escalated]).map((ticket) => ticket.id),
+    ).toEqual(["ticket_escalated", high.id, low.id]);
   });
 
   it("moves tickets through claim and close states", () => {
@@ -36,7 +44,7 @@ describe("queues", () => {
       kind: "mentor",
       requesterId: "u1",
       topic: "API",
-      description: "Need help"
+      description: "Need help",
     });
 
     const claimed = claimTicket(ticket, "mentor1", "2026-06-06T10:05:00.000Z");
@@ -55,8 +63,8 @@ describe("queues", () => {
         kind: "mentor",
         requesterId: `u${index}`,
         topic: "Help",
-        description: "Need help"
-      })
+        description: "Need help",
+      }),
     );
 
     expect(estimateWaitMinutes(tickets, 2, 10)).toBe(25);

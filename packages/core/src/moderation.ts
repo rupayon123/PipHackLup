@@ -20,7 +20,9 @@ export interface AutoModRuleTemplate {
   exampleTerms: string[];
 }
 
-export function createModerationCase(input: CreateModerationCaseInput): ModerationCase {
+export function createModerationCase(
+  input: CreateModerationCaseInput,
+): ModerationCase {
   const now = input.now ?? new Date().toISOString();
   const moderationCase: ModerationCase = {
     id: createId("case"),
@@ -30,18 +32,19 @@ export function createModerationCase(input: CreateModerationCaseInput): Moderati
     reason: input.reason.trim(),
     status: input.action === "report" ? "open" : "resolved",
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
   if (input.reporterId) moderationCase.reporterId = input.reporterId;
   if (input.moderatorId) moderationCase.moderatorId = input.moderatorId;
-  if (input.evidenceMessageUrl) moderationCase.evidenceMessageUrl = input.evidenceMessageUrl;
+  if (input.evidenceMessageUrl)
+    moderationCase.evidenceMessageUrl = input.evidenceMessageUrl;
   return moderationCase;
 }
 
 export function resolveModerationCase(
   moderationCase: ModerationCase,
   moderatorId: Snowflake,
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
 ): ModerationCase {
   return { ...moderationCase, moderatorId, status: "resolved", updatedAt: now };
 }
@@ -53,21 +56,26 @@ export function defaultAutoModTemplates(): AutoModRuleTemplate[] {
       goal: "Block common scam, fake Nitro, wallet drain, and suspicious invite bait before it reaches participants.",
       trigger: "keyword",
       recommendedAction: "block_message",
-      exampleTerms: ["free nitro", "airdrop claim", "verify wallet", "discord.gift"]
+      exampleTerms: [
+        "free nitro",
+        "airdrop claim",
+        "verify wallet",
+        "discord.gift",
+      ],
     },
     {
       name: "Mass mention protection",
       goal: "Stop raids or accidental everyone/here-style disruption during event day.",
       trigger: "mention_spam",
       recommendedAction: "block_message",
-      exampleTerms: ["max_mentions: 8"]
+      exampleTerms: ["max_mentions: 8"],
     },
     {
       name: "Spammy message bursts",
       goal: "Reduce repeated text spam in public channels while keeping help channels usable.",
       trigger: "spam",
       recommendedAction: "send_alert",
-      exampleTerms: ["repeated text", "excessive caps", "message burst"]
-    }
+      exampleTerms: ["repeated text", "excessive caps", "message burst"],
+    },
   ];
 }

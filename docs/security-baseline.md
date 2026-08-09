@@ -13,15 +13,16 @@ PipHackLup is public and handles Discord organizer workflows, so new features sh
 
 ## Current Implementation
 
-- Web rate limiting lives in `apps/web/lib/rate-limit.ts`.
+- Web rate limiting lives in `apps/web/lib/rate-limit.ts`, uses atomic Postgres buckets in configured deployments, and removes expired rows before each upsert.
 - Dashboard RBAC lives in `apps/web/lib/dashboard-security.ts`.
 - Bot command throttling lives in `apps/bot/src/lib/rate-limit.ts`.
 - Prompt-injection filtering lives in `packages/core/src/security.ts`.
 - Staff-trained Q&A uses the filter before saving training and before answering suspicious questions.
+- Sensitive Q&A details are sent only to a live-verified staff-private channel; public mentor notifications are redacted.
 
 ## Future Hardening
 
-- Replace in-memory rate limiting with Redis or another shared store when traffic spans multiple runtime instances.
-- Add audit events for dashboard training writes and bot staff actions.
-- Add configured staff-role RBAC checks to dashboard flows once server settings support role sync.
+- Consider a dedicated rate-limit service only if Postgres bucket traffic becomes a measurable bottleneck.
+- Keep audit events and primary writes atomic where the workflow cannot safely tolerate a post-commit audit warning.
+- Keep configured staff-role and Discord-permission checks aligned as new dashboard or bot actions are added.
 - Add security regression tests for any new API route or bot command.

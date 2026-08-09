@@ -5,6 +5,13 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: piphacklup-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,11 +25,38 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Dependency audit
+        run: pnpm audit --audit-level moderate
       - name: Secret pattern scan
         run: |
           if git grep -InE '([A-Za-z0-9_-]{24,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}|github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{32,})' -- ':!*.png' ':!*.jpg' ':!*.webp' ':!*.gif'; then
             echo "Potential secret-like token found. Remove it before pushing."
             exit 1
           fi
+      - name: Migration history integrity
+        run: pnpm check:migrations
       - run: pnpm check
+      - run: pnpm format
       - run: pnpm test
+      - run: pnpm build
+      - name: Build production bot image
+        run: docker build --file apps/bot/Dockerfile --tag piphacklup-bot:ci .
+      - name: Smoke-test production bot image
+        run: |
+          docker run --rm --entrypoint node piphacklup-bot:ci --check apps/bot/dist/index.js
+          docker run --rm --entrypoint node piphacklup-bot:ci --input-type=module --eval "await Promise.all([import('./apps/bot/dist/lib/health.js'), import('@piphacklup/core'), import('@piphacklup/db')])"
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @piphacklup/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @piphacklup/web e2e

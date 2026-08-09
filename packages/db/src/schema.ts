@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  index,
   jsonb,
   pgEnum,
   pgTable,
@@ -66,9 +67,80 @@ export const guilds = pgTable("guilds", {
     .$type<Record<string, string>>()
     .notNull()
     .default({}),
+  resources: jsonb("resources")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const discordAccounts = pgTable("discord_accounts", {
+  discordUserId: text("discord_user_id").primaryKey(),
+  username: text("username").notNull(),
+  globalName: text("global_name"),
+  avatarUrl: text("avatar_url"),
+  accessTokenEncrypted: text("access_token_encrypted").notNull(),
+  refreshTokenEncrypted: text("refresh_token_encrypted").notNull(),
+  tokenExpiresAt: timestamp("token_expires_at", {
+    withTimezone: true,
+  }).notNull(),
+  tokenVersion: integer("token_version").notNull().default(1),
+  tokenRefreshLeaseId: text("token_refresh_lease_id"),
+  tokenRefreshLeaseExpiresAt: timestamp("token_refresh_lease_expires_at", {
+    withTimezone: true,
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const discordSessions = pgTable("discord_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  discordUserId: text("discord_user_id")
+    .notNull()
+    .references(() => discordAccounts.discordUserId, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    keyHash: text("key_hash").primaryKey(),
+    count: integer("count").notNull(),
+    resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    resetAtIdx: index("rate_limit_bucket_reset_at_idx").on(table.resetAt),
+  }),
+);
+
+export const discordInstallations = pgTable("discord_installations", {
+  guildId: text("guild_id")
+    .primaryKey()
+    .references(() => guilds.id, { onDelete: "cascade" }),
+  guildName: text("guild_name").notNull(),
+  installedAt: timestamp("installed_at", { withTimezone: true }),
+  removedAt: timestamp("removed_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

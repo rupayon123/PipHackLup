@@ -6,6 +6,7 @@ export interface BotRateLimitPolicy {
 export const botRateLimitPolicies = {
   command: { limit: 30, windowMs: 60_000 },
   mutationCommand: { limit: 12, windowMs: 60_000 },
+  buttonMutation: { limit: 6, windowMs: 60_000 },
   ambientQa: { limit: 8, windowMs: 60_000 },
 } satisfies Record<string, BotRateLimitPolicy>;
 

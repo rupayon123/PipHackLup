@@ -9,17 +9,19 @@
     "dev": "next dev",
     "e2e": "playwright test",
     "lint": "pnpm typecheck",
+    "prebuild": "pnpm --filter @piphacklup/core build && pnpm --filter @piphacklup/db build && pnpm --filter @piphacklup/ui build",
     "predev": "pnpm --filter @piphacklup/core build && pnpm --filter @piphacklup/db build && pnpm --filter @piphacklup/ui build",
+    "pretest": "pnpm --filter @piphacklup/core build && pnpm --filter @piphacklup/db build && pnpm --filter @piphacklup/ui build",
     "start": "next start",
-    "test": "vitest run --passWithNoTests",
-    "typecheck": "pnpm --filter @piphacklup/core build && pnpm --filter @piphacklup/db build && pnpm --filter @piphacklup/ui build && tsc -p tsconfig.json --noEmit"
+    "test": "vitest run",
+    "typecheck": "pnpm --filter @piphacklup/core build && pnpm --filter @piphacklup/db build && pnpm --filter @piphacklup/ui build && next typegen && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@piphacklup/core": "workspace:*",
     "@piphacklup/db": "workspace:*",
     "@piphacklup/ui": "workspace:*",
     "lucide-react": "^0.562.0",
-    "next": "^16.2.7",
+    "next": "^16.2.11",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

@@ -1,4 +1,10 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  consumeRateLimitInDb,
+  isDatabaseConfigured,
+  type RateLimitDecision,
+} from "@piphacklup/db";
 
 export interface RateLimitPolicy {
   limit: number;
@@ -20,32 +26,41 @@ interface Bucket {
 const buckets = new Map<string, Bucket>();
 const maxBuckets = 5_000;
 
-export function enforceRateLimit(
+export async function enforceRateLimit(
   request: NextRequest,
   options: {
     key: string;
     policy: RateLimitPolicy;
+    allowLocalFallback?: boolean;
   },
-): NextResponse | null {
+): Promise<NextResponse | null> {
   void request;
-  const now = Date.now();
-  pruneBuckets(now);
-
-  const bucket = buckets.get(options.key);
-  if (!bucket || bucket.resetAt <= now) {
-    buckets.set(options.key, {
-      count: 1,
-      resetAt: now + options.policy.windowMs,
-    });
-    return null;
+  let decision: RateLimitDecision;
+  if (isDatabaseConfigured()) {
+    try {
+      decision = await consumeRateLimitInDb({
+        keyHash: hashRateLimitKey(options.key),
+        limit: options.policy.limit,
+        windowMs: options.policy.windowMs,
+      });
+    } catch {
+      console.error("PipHackLup could not check the shared web rate limit.");
+      if (!options.allowLocalFallback) {
+        return NextResponse.json(
+          { error: "rate_limit_unavailable" },
+          { status: 503, headers: { "Retry-After": "5" } },
+        );
+      }
+      decision = consumeLocalRateLimit(options.key, options.policy);
+    }
+  } else {
+    decision = consumeLocalRateLimit(options.key, options.policy);
   }
 
-  bucket.count += 1;
-  if (bucket.count <= options.policy.limit) return null;
-
+  if (decision.allowed) return null;
   const retryAfterSeconds = Math.max(
     1,
-    Math.ceil((bucket.resetAt - now) / 1000),
+    Math.ceil((decision.resetAt.getTime() - Date.now()) / 1000),
   );
   return NextResponse.json(
     {
@@ -56,9 +71,11 @@ export function enforceRateLimit(
       status: 429,
       headers: {
         "Retry-After": String(retryAfterSeconds),
-        "X-RateLimit-Limit": String(options.policy.limit),
-        "X-RateLimit-Remaining": "0",
-        "X-RateLimit-Reset": String(Math.ceil(bucket.resetAt / 1000)),
+        "X-RateLimit-Limit": String(decision.limit),
+        "X-RateLimit-Remaining": String(decision.remaining),
+        "X-RateLimit-Reset": String(
+          Math.ceil(decision.resetAt.getTime() / 1000),
+        ),
       },
     },
   );
@@ -74,6 +91,48 @@ export function buildRateLimitKey(parts: Array<string | undefined>): string {
   return parts
     .map((part) => (part && part.trim() ? part.trim() : "unknown"))
     .join(":");
+}
+
+export function buildPreAuthRateLimitKey(
+  request: NextRequest,
+  action: string,
+): string {
+  return buildRateLimitKey(["web", action, `ip-${getClientIp(request)}`]);
+}
+
+export function hashRateLimitKey(key: string): string {
+  return createHash("sha256")
+    .update(`piphacklup:web-rate-limit:v1:${key}`)
+    .digest("hex");
+}
+
+function consumeLocalRateLimit(
+  key: string,
+  policy: RateLimitPolicy,
+  now = Date.now(),
+): RateLimitDecision {
+  pruneBuckets(now);
+  const bucket = buckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    const resetAt = now + policy.windowMs;
+    buckets.set(key, { count: 1, resetAt });
+    return {
+      allowed: true,
+      count: 1,
+      limit: policy.limit,
+      remaining: Math.max(0, policy.limit - 1),
+      resetAt: new Date(resetAt),
+    };
+  }
+
+  bucket.count += 1;
+  return {
+    allowed: bucket.count <= policy.limit,
+    count: bucket.count,
+    limit: policy.limit,
+    remaining: Math.max(0, policy.limit - bucket.count),
+    resetAt: new Date(bucket.resetAt),
+  };
 }
 
 function pruneBuckets(now: number): void {

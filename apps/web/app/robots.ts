@@ -4,9 +4,9 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: "/"
+      allow: "/",
     },
     sitemap: "https://piphacklup.vercel.app/sitemap.xml",
-    host: "https://piphacklup.vercel.app"
+    host: "https://piphacklup.vercel.app",
   };
 }

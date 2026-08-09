@@ -6,15 +6,27 @@ describe("csv", () => {
     const csv = toCsv([
       {
         name: "Penguin Labs",
-        notes: "frontend, AI, and demos"
-      }
+        notes: "frontend, AI, and demos",
+      },
     ]);
 
     expect(fromCsv(csv)).toEqual([
       {
         name: "Penguin Labs",
-        notes: "frontend, AI, and demos"
-      }
+        notes: "frontend, AI, and demos",
+      },
     ]);
+  });
+
+  it("neutralizes spreadsheet formulas in exported cells", () => {
+    const csv = toCsv([
+      {
+        name: '=HYPERLINK("https://attacker.test")',
+        notes: "+1+1",
+      },
+    ]);
+
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'+1+1");
   });
 });

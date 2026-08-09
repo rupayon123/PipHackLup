@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDatabaseConfigured } from "@piphacklup/db";
 import {
+  DiscordAuthUnavailableError,
   findManagedGuild,
   readDiscordSession,
   type DiscordSession,
   type ManagedDiscordGuild,
 } from "@/lib/discord-auth";
 import {
-  buildRateLimitKey,
+  buildPreAuthRateLimitKey,
   enforceRateLimit,
-  getClientIp,
   type RateLimitPolicy,
 } from "@/lib/rate-limit";
 
@@ -27,21 +27,32 @@ export async function requireOrganizerGuildAccess(
     action: string;
     rateLimit: RateLimitPolicy;
     requireDatabase?: boolean;
+    guildId?: string;
   },
 ): Promise<DashboardAccess | NextResponse> {
-  const guildId = request.nextUrl.searchParams.get("guildId");
-  const session = await readDiscordSession();
-  const rateLimitResponse = enforceRateLimit(request, {
-    key: buildRateLimitKey([
-      "web",
-      options.action,
-      session?.user.id ?? `ip-${getClientIp(request)}`,
-      guildId ?? "no-guild",
-    ]),
+  const guildId =
+    options.guildId ?? request.nextUrl.searchParams.get("guildId") ?? undefined;
+  const rateLimitResponse = await enforceRateLimit(request, {
+    // This bucket runs before authentication, so its cardinality must depend
+    // only on trusted request context. Never let an attacker create one
+    // persistent database row per arbitrary guildId.
+    key: buildPreAuthRateLimitKey(request, options.action),
     policy: options.rateLimit,
   });
   if (rateLimitResponse) return rateLimitResponse;
 
+  let session: DiscordSession | null;
+  try {
+    session = await readDiscordSession();
+  } catch (error) {
+    if (error instanceof DiscordAuthUnavailableError) {
+      return NextResponse.json(
+        { error: "discord_session_unavailable" },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
   if (options.requireDatabase !== false && !isDatabaseConfigured()) {
     return NextResponse.json(
       { error: "database_not_configured" },

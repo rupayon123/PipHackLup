@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createTeam, suggestTeamMatches, type MemberProfile } from "../src/index.js";
+import {
+  createTeam,
+  suggestTeamMatches,
+  type MemberProfile,
+} from "../src/index.js";
 
 const now = "2026-06-06T10:00:00.000Z";
 
-function member(userId: string, skills: string[], interests: string[] = []): MemberProfile {
+function member(
+  userId: string,
+  skills: string[],
+  interests: string[] = [],
+): MemberProfile {
   return {
     userId,
     displayName: userId,
@@ -11,7 +19,7 @@ function member(userId: string, skills: string[], interests: string[] = []): Mem
     interests,
     beginnerFriendly: true,
     lookingForTeam: true,
-    updatedAt: now
+    updatedAt: now,
   };
 }
 
@@ -24,18 +32,22 @@ describe("team matching", () => {
       name: "Penguin Labs",
       desiredSkills: ["frontend", "design", "ai"],
       projectIdea: "AI mentor assistant",
-      now
+      now,
     });
     const suggestions = suggestTeamMatches(
       [
         member("frontend", ["frontend", "react"]),
         member("designer", ["design", "figma"]),
-        member("random", ["rust"])
+        member("random", ["rust"]),
       ],
-      [team]
+      [team],
     );
 
-    expect(suggestions[0]?.addedMemberIds).toEqual(["frontend", "designer", "random"]);
+    expect(suggestions[0]?.addedMemberIds).toEqual([
+      "frontend",
+      "designer",
+      "random",
+    ]);
     expect(suggestions[0]?.score).toBeGreaterThan(0);
   });
 });

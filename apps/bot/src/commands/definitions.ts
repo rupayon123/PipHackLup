@@ -24,7 +24,9 @@ export const commandDefinitions = [
     .addBooleanOption((option) =>
       option
         .setName("private")
-        .setDescription("Only show the answer to you")
+        .setDescription(
+          "Only you see the answer; escalated questions may be shared with authorized staff",
+        )
         .setRequired(false),
     ),
   new SlashCommandBuilder()
@@ -165,16 +167,16 @@ export const commandDefinitions = [
     .addStringOption((option) =>
       option
         .setName("onboarding")
-        .setDescription("Newcomer onboarding mode")
+        .setDescription("Choose guided or participant-role-gated onboarding")
         .setRequired(false)
         .addChoices(
-          { name: "Guided", value: "guided" },
-          { name: "Gated", value: "gated" },
+          { name: "Guided checklist", value: "guided" },
+          { name: "Gated participant access", value: "gated" },
         ),
     ),
   new SlashCommandBuilder()
     .setName("onboard")
-    .setDescription("Newcomer checklist, nickname, roles, and profile helpers")
+    .setDescription("Verified checklist, nickname, and profile helpers")
     .addSubcommand((subcommand) =>
       subcommand
         .setName("checklist")
@@ -298,7 +300,7 @@ export const commandDefinitions = [
     ),
   new SlashCommandBuilder()
     .setName("team")
-    .setDescription("Create teams, recruit members, and run matching")
+    .setDescription("Save profiles, create recruiting teams, suggest matches")
     .addSubcommand((subcommand) =>
       subcommand
         .setName("create")

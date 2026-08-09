@@ -51,6 +51,12 @@ export interface EventConfig {
     moderationLog?: Snowflake;
     auditLog?: Snowflake;
   };
+  resources?: {
+    eventCategoryId?: Snowflake;
+    onboardingPanelMessageId?: Snowflake;
+    helpPanelMessageId?: Snowflake;
+    teamsPanelMessageId?: Snowflake;
+  };
 }
 
 export interface MemberProfile {
@@ -115,7 +121,14 @@ export interface AuditEvent {
   guildId: Snowflake;
   actorId: Snowflake;
   action: string;
-  targetType: "guild" | "member" | "team" | "ticket" | "case" | "settings";
+  targetType:
+    | "guild"
+    | "member"
+    | "team"
+    | "ticket"
+    | "case"
+    | "knowledge"
+    | "settings";
   targetId: string;
   metadata: Record<string, string | number | boolean>;
   createdAt: string;
