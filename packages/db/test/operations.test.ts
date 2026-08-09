@@ -451,7 +451,7 @@ describe("team operations", () => {
       { teamId: "team-a", userId: "member-a" },
     ];
     const { db, selects } = createFakeDb({
-      rowsByTable: new Map([
+      rowsByTable: new Map<object, unknown[]>([
         [teams, teamRows],
         [teamMembers, memberships],
       ]),

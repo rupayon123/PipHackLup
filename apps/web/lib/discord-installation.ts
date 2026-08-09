@@ -1,6 +1,6 @@
 const DISCORD_API = "https://discord.com/api/v10";
 const DEFAULT_INSTALL_PERMISSIONS = "1099914365968";
-const DISCORD_SNOWFLAKE = /^\d{17,20}$/;
+const DISCORD_SNOWFLAKE = /^[1-9]\d{16,19}$/;
 
 interface DiscordBotGuildResponse {
   id: string;

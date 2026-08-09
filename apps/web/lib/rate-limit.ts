@@ -23,8 +23,53 @@ interface Bucket {
   resetAt: number;
 }
 
-const buckets = new Map<string, Bucket>();
 const maxBuckets = 5_000;
+
+export interface LocalRateLimiter {
+  consume(key: string, policy: RateLimitPolicy): RateLimitDecision;
+}
+
+export function createLocalRateLimiter(options?: {
+  maximumBuckets?: number;
+  now?: () => number;
+}): LocalRateLimiter {
+  const maximumBuckets = options?.maximumBuckets ?? maxBuckets;
+  const now = options?.now ?? Date.now;
+  if (!Number.isSafeInteger(maximumBuckets) || maximumBuckets < 1) {
+    throw new RangeError("maximumBuckets must be a positive integer.");
+  }
+  const buckets = new Map<string, Bucket>();
+
+  return {
+    consume(key, policy) {
+      const checkedAt = now();
+      pruneBuckets(buckets, checkedAt, key, maximumBuckets);
+      const bucket = buckets.get(key);
+      if (!bucket || bucket.resetAt <= checkedAt) {
+        const resetAt = checkedAt + policy.windowMs;
+        buckets.set(key, { count: 1, resetAt });
+        return {
+          allowed: true,
+          count: 1,
+          limit: policy.limit,
+          remaining: Math.max(0, policy.limit - 1),
+          resetAt: new Date(resetAt),
+        };
+      }
+
+      bucket.count += 1;
+      return {
+        allowed: bucket.count <= policy.limit,
+        count: bucket.count,
+        limit: policy.limit,
+        remaining: Math.max(0, policy.limit - bucket.count),
+        resetAt: new Date(bucket.resetAt),
+      };
+    },
+  };
+}
+
+const localRateLimiter = createLocalRateLimiter();
 
 export async function enforceRateLimit(
   request: NextRequest,
@@ -51,10 +96,10 @@ export async function enforceRateLimit(
           { status: 503, headers: { "Retry-After": "5" } },
         );
       }
-      decision = consumeLocalRateLimit(options.key, options.policy);
+      decision = localRateLimiter.consume(options.key, options.policy);
     }
   } else {
-    decision = consumeLocalRateLimit(options.key, options.policy);
+    decision = localRateLimiter.consume(options.key, options.policy);
   }
 
   if (decision.allowed) return null;
@@ -106,40 +151,26 @@ export function hashRateLimitKey(key: string): string {
     .digest("hex");
 }
 
-function consumeLocalRateLimit(
-  key: string,
-  policy: RateLimitPolicy,
-  now = Date.now(),
-): RateLimitDecision {
-  pruneBuckets(now);
-  const bucket = buckets.get(key);
-  if (!bucket || bucket.resetAt <= now) {
-    const resetAt = now + policy.windowMs;
-    buckets.set(key, { count: 1, resetAt });
-    return {
-      allowed: true,
-      count: 1,
-      limit: policy.limit,
-      remaining: Math.max(0, policy.limit - 1),
-      resetAt: new Date(resetAt),
-    };
-  }
-
-  bucket.count += 1;
-  return {
-    allowed: bucket.count <= policy.limit,
-    count: bucket.count,
-    limit: policy.limit,
-    remaining: Math.max(0, policy.limit - bucket.count),
-    resetAt: new Date(bucket.resetAt),
-  };
-}
-
-function pruneBuckets(now: number): void {
-  if (buckets.size < maxBuckets) return;
+function pruneBuckets(
+  buckets: Map<string, Bucket>,
+  now: number,
+  incomingKey: string,
+  maximumBuckets: number,
+): void {
+  if (buckets.size < maximumBuckets) return;
 
   for (const [key, bucket] of buckets) {
     if (bucket.resetAt <= now) buckets.delete(key);
-    if (buckets.size < maxBuckets) return;
+  }
+
+  const targetSize = buckets.has(incomingKey)
+    ? maximumBuckets
+    : maximumBuckets - 1;
+  if (buckets.size <= targetSize) return;
+
+  for (const key of buckets.keys()) {
+    if (key === incomingKey) continue;
+    buckets.delete(key);
+    if (buckets.size <= targetSize) return;
   }
 }

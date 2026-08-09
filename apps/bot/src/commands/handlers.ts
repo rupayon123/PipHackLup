@@ -188,9 +188,11 @@ async function handleAsk(
   if (privateReply) {
     await interaction.editReply({ embeds: [embed] });
   } else {
+    await interaction.editReply({
+      content: "Posting this answer publicly…",
+    });
     try {
       await interaction.followUp({ embeds: [embed] });
-      await interaction.deleteReply().catch(() => null);
     } catch {
       await interaction.editReply({
         content:
@@ -198,6 +200,7 @@ async function handleAsk(
       });
       return;
     }
+    await interaction.deleteReply().catch(() => null);
   }
 
   if (result.shouldEscalate) {

@@ -519,6 +519,38 @@ describe("Q&A and training durability", () => {
     expect(order.at(-1)).toBe("edit");
   });
 
+  it("fulfills the ephemeral defer before sending a durable public /ask answer", async () => {
+    const order: string[] = [];
+    knowledgeMocks.getTrainingSettings.mockResolvedValue({
+      minConfidence: 0,
+      publicAnswers: true,
+    });
+    knowledgeMocks.listTrainingEntries.mockResolvedValue([
+      {
+        id: "entry-public-ask",
+        guildId: "guild-handler-ask",
+        title: "Doors open",
+        answer: "Doors open at 9.",
+        tags: ["doors", "open"],
+        escalationTarget: "none",
+        createdBy: "staff-1",
+        createdAt: "2026-08-09T12:00:00.000Z",
+        updatedAt: "2026-08-09T12:00:00.000Z",
+      },
+    ]);
+    const interaction = askInteraction(order, false);
+
+    await handleChatInput(interaction);
+
+    expect(order).toEqual(["defer", "edit", "follow-up", "delete"]);
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: "Posting this answer publicly…",
+    });
+    expect(interaction.followUp).toHaveBeenCalledWith({
+      embeds: [expect.any(Object)],
+    });
+  });
+
   it("routes a private safety question only to a verified staff-private channel", async () => {
     const privateSend = vi.fn();
     const currentChannelSend = vi.fn();
@@ -697,7 +729,10 @@ describe("Q&A and training durability", () => {
   });
 });
 
-function askInteraction(order: string[]): ChatInputCommandInteraction {
+function askInteraction(
+  order: string[],
+  privateReply = true,
+): ChatInputCommandInteraction {
   return {
     guildId: "guild-handler-ask",
     guild: { name: "Handler Ask Guild" },
@@ -706,7 +741,7 @@ function askInteraction(order: string[]): ChatInputCommandInteraction {
     options: {
       getString: (name: string) =>
         name === "question" ? "When do doors open?" : null,
-      getBoolean: () => true,
+      getBoolean: () => privateReply,
     },
     deferReply: vi.fn(async () => {
       order.push("defer");
@@ -714,8 +749,12 @@ function askInteraction(order: string[]): ChatInputCommandInteraction {
     editReply: vi.fn(async () => {
       order.push("edit");
     }),
-    followUp: vi.fn(),
-    deleteReply: vi.fn(),
+    followUp: vi.fn(async () => {
+      order.push("follow-up");
+    }),
+    deleteReply: vi.fn(async () => {
+      order.push("delete");
+    }),
     reply: vi.fn(),
   } as unknown as ChatInputCommandInteraction;
 }

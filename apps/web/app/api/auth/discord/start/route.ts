@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   createOauthState,
-  getAppUrl,
   getDiscordAuthorizeUrl,
   isDiscordAuthConfigured,
   setOauthStateCookie,
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   if (!isDiscordAuthConfigured()) {
     return NextResponse.redirect(
-      new URL("/dashboard?auth=missing", getAppUrl()),
+      new URL("/dashboard?auth=missing", request.url),
     );
   }
 

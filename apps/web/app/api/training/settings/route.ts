@@ -10,7 +10,7 @@ import { getDiscordGuildConfigurationOptions } from "@/lib/discord-installation"
 import { webRateLimitPolicies } from "@/lib/rate-limit";
 import { hasTrustedMutationOrigin } from "@/lib/request-security";
 
-const SNOWFLAKE_PATTERN = /^\d{17,20}$/;
+const SNOWFLAKE_PATTERN = /^[1-9]\d{16,19}$/;
 
 export async function GET(request: NextRequest) {
   const access = await requireOrganizerGuildAccess(request, {

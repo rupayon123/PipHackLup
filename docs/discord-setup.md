@@ -58,7 +58,13 @@ For a test server, set `DISCORD_TEST_GUILD_ID` so commands register instantly:
 npx --yes pnpm@10.25.0 --filter @piphacklup/bot deploy:commands
 ```
 
-After the isolated release test passes, run the same command once with `DISCORD_TEST_GUILD_ID` unset to publish the commands globally. Do not register global commands from multiple deploy jobs at the same time.
+After the isolated release test passes, unset `DISCORD_TEST_GUILD_ID` and use the explicit global-publication flag:
+
+```bash
+npx --yes pnpm@10.25.0 --filter @piphacklup/bot deploy:commands --global
+```
+
+Without either an isolated guild ID or `--global`, the deployment command stops without changing Discord. Do not register global commands from multiple deploy jobs at the same time.
 
 Then run the bot:
 

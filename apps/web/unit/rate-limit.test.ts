@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import {
   buildPreAuthRateLimitKey,
   buildRateLimitKey,
+  createLocalRateLimiter,
   enforceRateLimit,
   getClientIp,
   hashRateLimitKey,
@@ -56,6 +57,20 @@ describe("web rate limiting", () => {
     });
 
     expect(getClientIp(request)).toBe("203.0.113.42");
+  });
+
+  it("bounds active fallback buckets by evicting the oldest key", () => {
+    const limiter = createLocalRateLimiter({
+      maximumBuckets: 2,
+      now: () => 1_000,
+    });
+    const policy = { limit: 1, windowMs: 60_000 };
+
+    expect(limiter.consume("oldest", policy).allowed).toBe(true);
+    expect(limiter.consume("oldest", policy).allowed).toBe(false);
+    expect(limiter.consume("second", policy).allowed).toBe(true);
+    expect(limiter.consume("third", policy).allowed).toBe(true);
+    expect(limiter.consume("oldest", policy).allowed).toBe(true);
   });
 
   it("does not let unauthenticated guild ids create distinct persistent buckets", () => {

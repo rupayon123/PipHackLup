@@ -26,8 +26,12 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "preflight:deployment": "node scripts/deployment-preflight.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "test": "node --test scripts/test/*.test.mjs && pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "verify:live:release": "node scripts/verify-live-release.mjs",
+    "verify:production:web": "node scripts/verify-production-web-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^25.0.1",

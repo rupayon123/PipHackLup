@@ -45,7 +45,7 @@ const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const OAUTH_STATE_PATTERN = /^[A-Za-z0-9_-]{32}$/;
 const SESSION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const SESSION_HASH_PATTERN = /^[a-f0-9]{64}$/;
-const SNOWFLAKE_PATTERN = /^\d{17,20}$/;
+const SNOWFLAKE_PATTERN = /^[1-9]\d{16,19}$/;
 const PERMISSIONS_PATTERN = /^\d{1,32}$/;
 const REFRESH_LEASE_PATTERN = /^[A-Za-z0-9_-]{24}$/;
 
@@ -157,10 +157,12 @@ export function hasDiscordAuthConfiguration(
 ): boolean {
   return Boolean(
     env.DISCORD_CLIENT_ID &&
+    SNOWFLAKE_PATTERN.test(env.DISCORD_CLIENT_ID) &&
     env.DISCORD_CLIENT_SECRET &&
     env.NEXTAUTH_SECRET &&
     Buffer.byteLength(env.NEXTAUTH_SECRET, "utf8") >= 32 &&
-    hasDiscordSessionStoreConfiguration(env),
+    hasDiscordSessionStoreConfiguration(env) &&
+    hasValidAppUrlConfiguration(env),
   );
 }
 
@@ -216,7 +218,11 @@ export function buildDiscordTokenRequest(
 
 export function getDiscordAuthorizeUrl(state: string): string {
   const clientId = process.env.DISCORD_CLIENT_ID;
-  if (!clientId) throw new Error("DISCORD_CLIENT_ID is required.");
+  if (!clientId || !SNOWFLAKE_PATTERN.test(clientId)) {
+    throw new Error(
+      "DISCORD_CLIENT_ID must be a valid Discord application ID.",
+    );
+  }
   return buildDiscordAuthorizeUrl({
     clientId,
     redirectUri: getDiscordRedirectUri(),
@@ -228,11 +234,51 @@ export function getDiscordRedirectUri(): string {
   return `${getAppUrl()}/api/auth/discord/callback`;
 }
 
-export function getAppUrl(): string {
-  const configured = process.env.NEXTAUTH_URL?.replace(/\/+$/, "");
-  if (configured) return configured;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+export function getAppUrl(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const configured = env.NEXTAUTH_URL;
+  if (configured) return normalizeAppOrigin(configured, "NEXTAUTH_URL");
+  if (env.VERCEL_URL) {
+    return normalizeAppOrigin(`https://${env.VERCEL_URL}`, "VERCEL_URL");
+  }
   return "http://localhost:3000";
+}
+
+function hasValidAppUrlConfiguration(
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  try {
+    getAppUrl(env);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeAppOrigin(value: string, name: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${name} must be an absolute HTTP(S) origin.`);
+  }
+
+  const localHttpHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  if (
+    (url.protocol !== "https:" &&
+      !(url.protocol === "http:" && localHttpHosts.has(url.hostname))) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      `${name} must be an HTTPS origin without credentials, a path, a query, or a fragment; HTTP is allowed only for localhost.`,
+    );
+  }
+  return url.origin;
 }
 
 export function createOauthState(): string {

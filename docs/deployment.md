@@ -22,6 +22,12 @@ Environment variables:
 - `DISCORD_TOKEN`
 - optional `DISCORD_INSTALL_PERMISSIONS`
 
+Validate both host contracts locally without making network requests or printing values:
+
+```bash
+npx --yes pnpm@10.25.0 preflight:deployment --target all
+```
+
 The dashboard uses Discord OAuth to show only servers the connected account owns or can manage. `DISCORD_TOKEN` is server-side only and lets the dashboard verify installations, list setup options, and remove the bot after an exact-name confirmation. Website training and `/train` share the same guild-scoped Q&A entries and escalation settings. Missing OAuth or database configuration disables protected flows; there is no production preview-data fallback.
 
 Scope the live Discord credentials, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, and production `DATABASE_URL` to **Production**. Do not give arbitrary branch previews access to the production bot token or database. Use a separate staging Discord app/database for authenticated preview testing; unauthenticated visual previews need neither.
@@ -33,13 +39,13 @@ Create a Neon Postgres database and copy the pooled connection string into `DATA
 Generate migrations locally:
 
 ```bash
-pnpm --filter @piphacklup/db db:generate
+npx --yes pnpm@10.25.0 --filter @piphacklup/db db:generate
 ```
 
 Apply migrations:
 
 ```bash
-pnpm --filter @piphacklup/db db:migrate
+npx --yes pnpm@10.25.0 --filter @piphacklup/db db:migrate
 ```
 
 Apply every committed migration before promoting the web or bot release. Use the pooled Neon connection string for runtime traffic and keep it only in hosting environment variables.
@@ -84,7 +90,7 @@ Health check:
 curl http://localhost:8787/health
 ```
 
-Do not route traffic to the bot until `/health` returns 200. A 503 means database configuration or startup hydration is not ready. Configure the host to restart the process after crashes and deploy only one command-registration job at a time.
+Do not route traffic to the bot until `/health` returns 200. Missing database configuration or failed initial database connectivity makes the bot exit nonzero before opening the health listener, so the host must restart it and surface the failed process. After startup, `/health` returns 503 while Discord is not ready, guild hydration is incomplete, persistence is degraded, or a live database probe fails. Configure the host to restart the process after crashes and deploy only one command-registration job at a time.
 
 ## Release order
 
@@ -94,6 +100,20 @@ Do not route traffic to the bot until `/health` returns 200. A 503 means databas
 4. Configure the bot host with the same `DATABASE_URL`, then register commands and start the bot.
 5. Verify `/health`, Discord login, managed-server discovery, guild-locked install, setup, Q&A, queues, teams, moderation, export, removal, and reinstall in an isolated test server.
 6. Promote the release only after the automated and isolated-server checks both pass.
+
+Before interactive testing, run the read-only deployed-web gate:
+
+```bash
+npx --yes pnpm@10.25.0 verify:live:release --base-url https://piphacklup.vercel.app --expected-client-id 1512918151313231983
+```
+
+After the bot is installed only in the isolated release server, inject `DISCORD_CLIENT_ID` and `DISCORD_TOKEN` through the shell or hosting secret store and add:
+
+```text
+--discord-read-only --test-guild-id <ISOLATED_GUILD_ID> --expected-guild-name "<EXACT_SERVER_NAME>"
+```
+
+This verifier makes only bounded `GET` requests, checks the exact guild and guild-command scope, and never enumerates or mutates other servers. Passing it does not replace the two-account interactive checklist in `docs/discord-setup.md`.
 
 ## Repo creation note
 

@@ -7,6 +7,7 @@ import {
   createSessionToken,
   decryptDiscordToken,
   encryptDiscordToken,
+  getAppUrl,
   hasDiscordAuthConfiguration,
   hasDiscordSessionStoreConfiguration,
   hashSessionToken,
@@ -66,12 +67,20 @@ describe("Discord OAuth configuration", () => {
     expect(
       hasDiscordAuthConfiguration({
         DATABASE_URL: "postgres://local.test/piphacklup",
-        DISCORD_CLIENT_ID: "client-id",
+        DISCORD_CLIENT_ID: "1512918151313231983",
         DISCORD_CLIENT_SECRET: "client-secret",
         NEXTAUTH_SECRET: secret,
       }),
     ).toBe(true);
 
+    expect(
+      hasDiscordAuthConfiguration({
+        DATABASE_URL: "postgres://local.test/piphacklup",
+        DISCORD_CLIENT_ID: "client-id",
+        DISCORD_CLIENT_SECRET: "client-secret",
+        NEXTAUTH_SECRET: secret,
+      }),
+    ).toBe(false);
     expect(
       hasDiscordAuthConfiguration({
         DISCORD_CLIENT_ID: "client-id",
@@ -82,7 +91,7 @@ describe("Discord OAuth configuration", () => {
     expect(
       hasDiscordAuthConfiguration({
         DATABASE_URL: "postgres://user:password@host:5432/piphacklup",
-        DISCORD_CLIENT_ID: "client-id",
+        DISCORD_CLIENT_ID: "1512918151313231983",
         DISCORD_CLIENT_SECRET: "client-secret",
         NEXTAUTH_SECRET: secret,
       }),
@@ -90,11 +99,41 @@ describe("Discord OAuth configuration", () => {
     expect(
       hasDiscordAuthConfiguration({
         DATABASE_URL: "postgres://local.test/piphacklup",
-        DISCORD_CLIENT_ID: "client-id",
+        DISCORD_CLIENT_ID: "1512918151313231983",
         DISCORD_CLIENT_SECRET: "client-secret",
         NEXTAUTH_SECRET: "too-short",
       }),
     ).toBe(false);
+
+    expect(
+      hasDiscordAuthConfiguration({
+        DATABASE_URL: "postgres://local.test/piphacklup",
+        DISCORD_CLIENT_ID: "1512918151313231983",
+        DISCORD_CLIENT_SECRET: "client-secret",
+        NEXTAUTH_SECRET: secret,
+        NEXTAUTH_URL: "http://public.example.test",
+      }),
+    ).toBe(false);
+  });
+
+  test("normalizes safe app origins and rejects callback-path mistakes", () => {
+    expect(getAppUrl({ NEXTAUTH_URL: "https://piphacklup.vercel.app/" })).toBe(
+      "https://piphacklup.vercel.app",
+    );
+    expect(getAppUrl({ NEXTAUTH_URL: "http://localhost:3000/" })).toBe(
+      "http://localhost:3000",
+    );
+    expect(getAppUrl({ VERCEL_URL: "preview.example.vercel.app" })).toBe(
+      "https://preview.example.vercel.app",
+    );
+    expect(() =>
+      getAppUrl({
+        NEXTAUTH_URL: "https://piphacklup.vercel.app/api/auth/discord/callback",
+      }),
+    ).toThrow("NEXTAUTH_URL");
+    expect(() =>
+      getAppUrl({ NEXTAUTH_URL: "https://user:pass@example.test" }),
+    ).toThrow("NEXTAUTH_URL");
   });
 
   test("recognizes session storage independently of OAuth credentials", () => {

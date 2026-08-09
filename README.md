@@ -128,3 +128,9 @@ See `docs/security-baseline.md` and `SECURITY.md` before adding new public endpo
 ## Production readiness
 
 PipHackLup is a two-service product: the Next.js organizer dashboard runs on Vercel, while the Discord gateway bot runs as a long-lived Node process. Both share one migrated Postgres database. A deployment is ready only when the environment variables are configured, migrations are applied, the bot health endpoint is healthy, Discord OAuth succeeds, and the isolated-server release checklist in `docs/discord-setup.md` passes.
+
+Before contacting either hosting provider, run the secret-redacting offline contract check:
+
+```bash
+npx --yes pnpm@10.25.0 preflight:deployment --target all
+```
