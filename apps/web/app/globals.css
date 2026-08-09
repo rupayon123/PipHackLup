@@ -823,7 +823,7 @@ html[data-dashboard-theme="dark"] .button.danger-ghost {
 }
 
 .toggle-row {
-  min-height: 44px;
+  min-height: 46px;
   color: var(--button-text);
   font-size: 14px;
   font-weight: 700;
