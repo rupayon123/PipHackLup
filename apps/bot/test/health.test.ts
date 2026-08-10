@@ -3,6 +3,7 @@ import {
   buildHealthStatus,
   buildProbedHealthStatus,
   createDatabaseHealthProbe,
+  resolveReleaseIdentifier,
 } from "../src/lib/health.js";
 
 afterEach(() => {
@@ -25,6 +26,7 @@ describe("buildHealthStatus", () => {
         status: "starting",
         discordReady: false,
         bot: null,
+        release: "unknown",
         databaseConfigured: false,
         databaseReady: false,
       },
@@ -47,6 +49,7 @@ describe("buildHealthStatus", () => {
         status: "misconfigured",
         discordReady: true,
         bot: "PipHackLup#1234",
+        release: "unknown",
         databaseConfigured: false,
         databaseReady: false,
       },
@@ -86,6 +89,7 @@ describe("buildHealthStatus", () => {
       buildHealthStatus({
         discordReady: true,
         botTag: "PipHackLup#1234",
+        release: "be10970eb0770448cd507a1ebccf67809bb0bd75",
         databaseConfigured: true,
         databaseInitializationComplete: true,
         databaseReady: true,
@@ -97,10 +101,22 @@ describe("buildHealthStatus", () => {
         status: "ready",
         discordReady: true,
         bot: "PipHackLup#1234",
+        release: "be10970eb0770448cd507a1ebccf67809bb0bd75",
         databaseConfigured: true,
         databaseReady: true,
       },
     });
+  });
+
+  it("publishes a validated release identity without exposing arbitrary environment text", () => {
+    expect(
+      resolveReleaseIdentifier({
+        PIPHACKLUP_RELEASE_SHA: "BE10970EB0770448CD507A1EBCCF67809BB0BD75",
+      }),
+    ).toBe("be10970eb0770448cd507a1ebccf67809bb0bd75");
+    expect(
+      resolveReleaseIdentifier({ PIPHACKLUP_RELEASE_SHA: "release candidate" }),
+    ).toBe("unknown");
   });
 
   it("degrades after a runtime database outage and recovers after the next successful probe", async () => {

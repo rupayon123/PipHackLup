@@ -15,6 +15,8 @@ import {
 } from "discord.js";
 import type { EventConfig, OnboardingMode } from "@piphacklup/core";
 import {
+  allowedAutomaticRoleChannelGrants,
+  hasOnlyAllowedAutomaticRoleChannelGrants,
   isSafeAutomaticAssignmentRole,
   selectReusableSensitiveSetupRole,
 } from "./automatic-role-safety.js";
@@ -106,6 +108,8 @@ export interface SetupReportSection {
 export const setupPermissionRequirements = [
   { flag: PermissionFlagsBits.ManageRoles, label: "Manage Roles" },
   { flag: PermissionFlagsBits.ManageChannels, label: "Manage Channels" },
+  { flag: PermissionFlagsBits.ManageNicknames, label: "Manage Nicknames" },
+  { flag: PermissionFlagsBits.ModerateMembers, label: "Moderate Members" },
   { flag: PermissionFlagsBits.ViewChannel, label: "View Channels" },
   { flag: PermissionFlagsBits.SendMessages, label: "Send Messages" },
   { flag: PermissionFlagsBits.EmbedLinks, label: "Embed Links" },
@@ -546,12 +550,34 @@ async function provisionHackathonGuildUnlocked(input: {
       rolePlan.key,
     );
     const requiresSafeNameAdoption = requiresSafeRoleNameAdoption(rolePlan.key);
+    const automaticRoleChannelGrants = isAutomaticAssignmentRole
+      ? allowedAutomaticRoleChannelGrants(
+          input.currentConfig,
+          rolePlan.key as "newcomer" | "participant",
+        )
+      : undefined;
     const reusableRole = requiresSafeNameAdoption
       ? selectReusableSensitiveSetupRole({
           ...(configuredRole ? { configuredRole } : {}),
           matchingRoles,
           everyoneRoleId: input.guild.id,
           memberInventoryComplete,
+          ...(automaticRoleChannelGrants
+            ? {
+                configuredRoleChannelSafe: configuredRole
+                  ? hasOnlyAllowedAutomaticRoleChannelGrants(
+                      configuredRole.id,
+                      guildChannels,
+                      automaticRoleChannelGrants,
+                    )
+                  : true,
+                isNameCandidateChannelSafe: (role: Role) =>
+                  hasOnlyAllowedAutomaticRoleChannelGrants(
+                    role.id,
+                    guildChannels,
+                  ),
+              }
+            : {}),
         })
       : isReusableRole(configuredRole, input.guild.id)
         ? configuredRole

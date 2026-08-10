@@ -7,6 +7,7 @@ import {
   listDiscordBotGuildIds,
   parseDiscordChannelOptions,
   parseDiscordRoleOptions,
+  verifyDiscordBotApplication,
 } from "../lib/discord-installation";
 
 const clientId = "1512918151313231983";
@@ -14,6 +15,7 @@ const guildId = "123456789012345678";
 
 afterEach(() => {
   delete process.env.DISCORD_TOKEN;
+  delete process.env.DISCORD_CLIENT_ID;
   vi.restoreAllMocks();
 });
 
@@ -42,6 +44,38 @@ describe("buildDiscordInstallUrl", () => {
 });
 
 describe("Discord bot installation API", () => {
+  it("verifies that the bot token belongs to the configured application", async () => {
+    process.env.DISCORD_TOKEN = "test-token";
+    process.env.DISCORD_CLIENT_ID = clientId;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ id: clientId }));
+
+    await expect(
+      verifyDiscordBotApplication(fetchMock),
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://discord.com/api/v10/oauth2/applications/@me",
+      expect.objectContaining({
+        headers: { authorization: "Bot test-token" },
+        cache: "no-store",
+      }),
+    );
+  });
+
+  it("rejects a bot token from a different Discord application", async () => {
+    process.env.DISCORD_TOKEN = "test-token";
+    process.env.DISCORD_CLIENT_ID = clientId;
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ id: "2512918151313231983" }));
+
+    await expect(verifyDiscordBotApplication(fetchMock)).rejects.toMatchObject({
+      name: "DiscordBotApiError",
+      status: 502,
+    });
+  });
+
   it("paginates the bot guild list without exposing the token", async () => {
     process.env.DISCORD_TOKEN = "test-token";
     const firstPage = Array.from({ length: 200 }, (_, index) => ({
@@ -119,6 +153,13 @@ describe("Discord bot installation API", () => {
     const channels = [
       { id: "123456789012345681", name: "help-desk", position: 2, type: 0 },
       { id: "123456789012345682", name: "voice", position: 1, type: 2 },
+      { id: "123456789012345683", name: "forum", position: 3, type: 15 },
+      {
+        id: "123456789012345684",
+        name: "announcements",
+        position: 4,
+        type: 5,
+      },
     ];
     const fetchMock = vi
       .fn<typeof fetch>()

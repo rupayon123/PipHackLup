@@ -5,7 +5,6 @@ import {
   getQueueTicketFromDb,
   listQueueTicketsFromDb,
   markDiscordInstallationInDb,
-  pingDatabase,
   saveGuildConfigInDb,
   saveModerationCaseInDb,
   saveModerationCaseWithAuditInDb,
@@ -14,6 +13,7 @@ import {
   transitionQueueTicketInDb,
   transitionQueueTicketWithAuditInDb,
   upsertMemberProfileInDb,
+  verifyDatabaseSchema,
   type GuildDashboardData,
   type GuildIdentity,
 } from "@piphacklup/db";
@@ -51,7 +51,6 @@ export interface BotPersistenceDependencies {
   getQueueTicketFromDb: typeof getQueueTicketFromDb;
   listQueueTicketsFromDb: typeof listQueueTicketsFromDb;
   markDiscordInstallationInDb: typeof markDiscordInstallationInDb;
-  pingDatabase: typeof pingDatabase;
   saveGuildConfigInDb: typeof saveGuildConfigInDb;
   saveModerationCaseInDb: typeof saveModerationCaseInDb;
   saveModerationCaseWithAuditInDb: typeof saveModerationCaseWithAuditInDb;
@@ -60,6 +59,7 @@ export interface BotPersistenceDependencies {
   transitionQueueTicketInDb: typeof transitionQueueTicketInDb;
   transitionQueueTicketWithAuditInDb: typeof transitionQueueTicketWithAuditInDb;
   upsertMemberProfileInDb: typeof upsertMemberProfileInDb;
+  verifyDatabaseSchema: typeof verifyDatabaseSchema;
 }
 
 const defaultDependencies: BotPersistenceDependencies = {
@@ -69,7 +69,6 @@ const defaultDependencies: BotPersistenceDependencies = {
   getQueueTicketFromDb,
   listQueueTicketsFromDb,
   markDiscordInstallationInDb,
-  pingDatabase,
   saveGuildConfigInDb,
   saveModerationCaseInDb,
   saveModerationCaseWithAuditInDb,
@@ -78,6 +77,7 @@ const defaultDependencies: BotPersistenceDependencies = {
   transitionQueueTicketInDb,
   transitionQueueTicketWithAuditInDb,
   upsertMemberProfileInDb,
+  verifyDatabaseSchema,
 };
 
 const guildLifecycleQueues = new Map<string, Promise<void>>();
@@ -95,8 +95,8 @@ export async function initializeGuildPersistence(
 export async function verifyDatabaseConnection(
   dependencies: BotPersistenceDependencies = defaultDependencies,
 ): Promise<void> {
-  await runPersistenceOperation("verify the database connection", () =>
-    dependencies.pingDatabase(),
+  await runPersistenceOperation("verify the database schema", () =>
+    dependencies.verifyDatabaseSchema(),
   );
 }
 

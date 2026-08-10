@@ -1,6 +1,7 @@
 export interface HealthStatusInput {
   discordReady: boolean;
   botTag?: string;
+  release?: string;
   databaseConfigured: boolean;
   databaseInitializationComplete: boolean;
   databaseReady: boolean;
@@ -11,6 +12,7 @@ export interface HealthStatusBody {
   status: "ready" | "starting" | "misconfigured" | "degraded";
   discordReady: boolean;
   bot: string | null;
+  release: string;
   databaseConfigured: boolean;
   databaseReady: boolean;
 }
@@ -111,10 +113,26 @@ export function buildHealthStatus(
       status,
       discordReady: input.discordReady,
       bot: input.botTag ?? null,
+      release: input.release ?? "unknown",
       databaseConfigured: input.databaseConfigured,
       databaseReady,
     },
   };
+}
+
+export function resolveReleaseIdentifier(
+  env: Readonly<Record<string, string | undefined>>,
+): string {
+  for (const candidate of [
+    env.PIPHACKLUP_RELEASE_SHA,
+    env.VERCEL_GIT_COMMIT_SHA,
+    env.GITHUB_SHA,
+  ]) {
+    if (candidate && /^[a-f\d]{7,64}$/i.test(candidate)) {
+      return candidate.toLowerCase();
+    }
+  }
+  return "unknown";
 }
 
 function assertPositiveDuration(value: number, name: string): void {

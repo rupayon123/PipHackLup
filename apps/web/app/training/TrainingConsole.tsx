@@ -49,6 +49,12 @@ export function TrainingConsole({
     );
   const [title, setTitle] = useState("");
   const [answer, setAnswer] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const answerRef = useRef<HTMLTextAreaElement>(null);
+  const [entryErrors, setEntryErrors] = useState<{
+    title?: string;
+    answer?: string;
+  }>({});
   const [tags, setTags] = useState("");
   const [escalationTarget, setEscalationTarget] =
     useState<KnowledgeEscalationTarget>("none");
@@ -132,12 +138,19 @@ export function TrainingConsole({
   const busy = busyAction !== null;
 
   async function addEntry() {
-    if (!title.trim() || !answer.trim()) {
+    const nextErrors: { title?: string; answer?: string } = {};
+    if (!title.trim()) nextErrors.title = "Enter the participant question.";
+    if (!answer.trim())
+      nextErrors.answer = "Enter the answer PipHackLup should give.";
+    setEntryErrors(nextErrors);
+    if (nextErrors.title || nextErrors.answer) {
       setNotice({
         kind: "error",
         message:
           "Add both a participant question and the answer they should receive.",
       });
+      if (nextErrors.title) titleRef.current?.focus();
+      else answerRef.current?.focus();
       return;
     }
 
@@ -155,6 +168,7 @@ export function TrainingConsole({
       setEntries((current) => [body.entry, ...current]);
       setTitle("");
       setAnswer("");
+      setEntryErrors({});
       setTags("");
       setEscalationTarget("none");
       setNotice({
@@ -280,12 +294,21 @@ export function TrainingConsole({
     });
   }
 
+  function clearEntryError(key: "title" | "answer") {
+    setEntryErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
+
   return (
     <div className="training-grid" aria-busy={busy}>
       <div
         className={`training-notice ${notice.kind}`}
         role={notice.kind === "error" ? "alert" : "status"}
-        aria-live="polite"
+        aria-live={notice.kind === "error" ? "assertive" : "polite"}
       >
         {notice.message}
       </div>
@@ -303,21 +326,49 @@ export function TrainingConsole({
         <label className="field">
           <span>Participant question or topic</span>
           <input
+            ref={titleRef}
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            maxLength={200}
+            aria-invalid={Boolean(entryErrors.title)}
+            aria-describedby={
+              entryErrors.title ? "training-title-error" : undefined
+            }
+            onChange={(event) => {
+              setTitle(event.target.value);
+              clearEntryError("title");
+            }}
             placeholder="When does the opening ceremony start?"
             disabled={busy}
           />
+          {entryErrors.title ? (
+            <span className="field-error" id="training-title-error">
+              {entryErrors.title}
+            </span>
+          ) : null}
         </label>
         <label className="field">
           <span>Answer PipHackLup should give</span>
           <textarea
+            ref={answerRef}
             value={answer}
-            onChange={(event) => setAnswer(event.target.value)}
+            maxLength={4000}
+            aria-invalid={Boolean(entryErrors.answer)}
+            aria-describedby={
+              entryErrors.answer ? "training-answer-error" : undefined
+            }
+            onChange={(event) => {
+              setAnswer(event.target.value);
+              clearEntryError("answer");
+            }}
             rows={5}
             placeholder="The opening ceremony starts at 9:30 AM in the main auditorium."
             disabled={busy}
           />
+          {entryErrors.answer ? (
+            <span className="field-error" id="training-answer-error">
+              {entryErrors.answer}
+            </span>
+          ) : null}
         </label>
         <div className="form-grid">
           <label className="field">

@@ -1,9 +1,11 @@
 import { CheckCircle2, Circle, ServerCog } from "lucide-react";
-import { getGuildConfigFromDb, type GuildIdentity } from "@piphacklup/db";
+import type { EventConfig } from "@piphacklup/core";
+import { getGuildConfigFromDb } from "@piphacklup/db";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { WorkspaceState } from "@/components/WorkspaceState";
 import { loadGuildWorkspace } from "@/lib/guild-workspace";
+import { SetupEditor } from "./SetupEditor";
 
 interface SetupPageProps {
   searchParams: Promise<{ guildId?: string }>;
@@ -30,6 +32,19 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
     ? Object.values(config.resources).filter(Boolean).length
     : 0;
   const setupStarted = Boolean(roleCount || channelCount || resourceCount);
+  const editorConfig: EventConfig | null = workspace.guild
+    ? (config ?? {
+        guildId: workspace.guild.id,
+        eventName: workspace.guild.name,
+        onboardingMode: "guided",
+        teamSizeMin: 2,
+        teamSizeMax: 4,
+        queueKinds: ["mentor", "tech", "judging", "staff"],
+        roles: {},
+        channels: {},
+        resources: {},
+      })
+    : null;
   const steps = [
     {
       label: "Server configuration saved",
@@ -97,10 +112,17 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
         />
       ) : (
         <>
+          <SetupEditor
+            key={workspace.guild.id}
+            guild={workspace.guild}
+            initialConfig={editorConfig!}
+            protectedResourceCount={resourceCount}
+          />
+
           <section className="setup-command-card">
             <ServerCog aria-hidden size={24} />
             <div>
-              <p className="eyebrow">Run this in {workspace.guild.name}</p>
+              <p className="eyebrow">Then run this in {workspace.guild.name}</p>
               <h2>/setup</h2>
               <p>
                 Only someone with Manage Server can run it. PipHackLup will
@@ -143,46 +165,8 @@ export default async function SetupPage({ searchParams }: SetupPageProps) {
               })}
             </div>
           </section>
-
-          {config && setupStarted ? (
-            <SetupDetails guild={workspace.guild} config={config} />
-          ) : null}
         </>
       )}
     </AppShell>
-  );
-}
-
-function SetupDetails({
-  guild,
-  config,
-}: Readonly<{
-  guild: GuildIdentity;
-  config: NonNullable<Awaited<ReturnType<typeof getGuildConfigFromDb>>>;
-}>) {
-  return (
-    <section className="card setup-details">
-      <h2>Saved event settings</h2>
-      <dl className="detail-list">
-        <div>
-          <dt>Discord server</dt>
-          <dd>{guild.name}</dd>
-        </div>
-        <div>
-          <dt>Event name</dt>
-          <dd>{config.eventName}</dd>
-        </div>
-        <div>
-          <dt>Onboarding</dt>
-          <dd>{config.onboardingMode}</dd>
-        </div>
-        <div>
-          <dt>Team size</dt>
-          <dd>
-            {config.teamSizeMin}–{config.teamSizeMax} people
-          </dd>
-        </div>
-      </dl>
-    </section>
   );
 }

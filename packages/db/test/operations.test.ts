@@ -16,7 +16,9 @@ import {
   listTeamsFromDb,
   markDiscordInstallationInDb,
   saveGuildConfigInDb,
+  saveModerationCaseInDb,
   saveModerationCaseWithAuditInDb,
+  saveQueueTicketInDb,
   saveTeamInDb,
   transitionQueueTicketInDb,
   transitionQueueTicketWithAuditInDb,
@@ -63,6 +65,7 @@ interface FakeDbOptions {
   installationRow?: unknown;
   guildRow?: unknown;
   updateRows?: unknown[];
+  insertRowsByTable?: Map<object, unknown[]>;
   executeRows?: Record<string, unknown>[];
   batchResults?: unknown[];
 }
@@ -166,7 +169,17 @@ function createFakeDb(options: FakeDbOptions = {}) {
           return chain;
         },
         returning() {
-          return chain;
+          return Promise.resolve(
+            options.insertRowsByTable?.get(table) ??
+              (call
+                ? [
+                    {
+                      id: (call.values as { id?: unknown }).id,
+                      guildId: (call.values as { guildId?: unknown }).guildId,
+                    },
+                  ]
+                : []),
+          );
         },
         then<TResult1 = void, TResult2 = never>(
           onFulfilled?:
@@ -654,6 +667,41 @@ describe("queue operations", () => {
     expect(findSelect(selects, queueTickets).limit).toBe(1);
   });
 
+  it("stores the authoritative guild and scopes queue upsert conflicts to it", async () => {
+    const { db, inserts } = createFakeDb();
+    const untrustedTicket = {
+      ...expectedTicket,
+      guildId: "untrusted-payload-guild",
+    };
+
+    await expect(
+      saveQueueTicketInDb(
+        { id: "guild-a", name: "Hack North Test" },
+        untrustedTicket,
+        db,
+      ),
+    ).resolves.toMatchObject({ guildId: "guild-a" });
+
+    const insert = findInsert(inserts, queueTickets);
+    expect(insert.values).toMatchObject({ id: "ticket-a", guildId: "guild-a" });
+    const conflict = insert.conflict?.config as { setWhere?: SQL } | undefined;
+    expect(sqlParams(conflict?.setWhere)).toContain("guild-a");
+  });
+
+  it("fails closed when a queue ticket id belongs to another guild", async () => {
+    const { db } = createFakeDb({
+      insertRowsByTable: new Map([[queueTickets, []]]),
+    });
+
+    await expect(
+      saveQueueTicketInDb(
+        { id: "guild-b", name: "Guild B" },
+        { ...expectedTicket, guildId: "guild-b" },
+        db,
+      ),
+    ).rejects.toThrow("Queue ticket id is already assigned to another guild");
+  });
+
   it("compares guild, id, prior status, and prior timestamp in one transition update", async () => {
     const priorUpdatedAt = "2026-08-09T12:05:00.000Z";
     const { db, updates } = createFakeDb({ updateRows: [queueRow] });
@@ -792,8 +840,10 @@ describe("queue operations", () => {
 });
 
 describe("moderation durability", () => {
-  it("batches a moderation case with its matching privileged audit event", async () => {
-    const { batches, db, inserts } = createFakeDb();
+  it("atomically stores a moderation case with its matching privileged audit event", async () => {
+    const { db, executions } = createFakeDb({
+      executeRows: [{ caseId: "case-a" }],
+    });
     const moderationCase: ModerationCase = {
       id: "case-a",
       guildId: "guild-a",
@@ -822,16 +872,83 @@ describe("moderation durability", () => {
       ),
     ).resolves.toMatchObject({ moderationCase });
 
-    expect(findInsert(inserts, moderationCases).values).toMatchObject({
-      id: "case-a",
-      guildId: "guild-a",
+    expect(executions).toHaveLength(1);
+    const query = new PgDialect().sqlToQuery(executions[0]!);
+    expect(query.sql).toContain("with saved_case as");
+    expect(query.sql).toContain("on conflict");
+    expect(query.sql).toContain('where "moderation_cases"."guild_id" =');
+    expect(query.sql).toContain("from saved_case");
+    expect(query.params).toEqual(
+      expect.arrayContaining(["guild-a", "case-a", "moderation.warn"]),
+    );
+  });
+
+  it("rejects a moderation id owned by another guild and writes no audit", async () => {
+    const { db, executions } = createFakeDb({ executeRows: [] });
+    const moderationCase: ModerationCase = {
+      id: "case-collision",
+      guildId: "guild-b",
+      targetUserId: "user-b",
+      action: "warn",
+      reason: "Must not overwrite another server",
+      moderatorId: "moderator-b",
+      status: "open",
+      createdAt: "2026-08-09T12:00:00.000Z",
+      updatedAt: "2026-08-09T12:00:00.000Z",
+    };
+
+    await expect(
+      saveModerationCaseWithAuditInDb(
+        { id: "guild-b", name: "Guild B" },
+        moderationCase,
+        {
+          guildId: "guild-b",
+          actorId: "moderator-b",
+          action: "moderation.warn",
+          targetType: "case",
+          targetId: "case-collision",
+          metadata: {},
+        },
+        db,
+      ),
+    ).rejects.toThrow(
+      "Moderation case id is already assigned to another guild",
+    );
+
+    expect(executions).toHaveLength(1);
+    expect(new PgDialect().sqlToQuery(executions[0]!).sql).toContain(
+      "from saved_case",
+    );
+  });
+
+  it("rejects a non-audited moderation id collision", async () => {
+    const { db, inserts } = createFakeDb({
+      insertRowsByTable: new Map([[moderationCases, []]]),
     });
-    expect(findInsert(inserts, auditEvents).values).toMatchObject({
-      guildId: "guild-a",
-      targetType: "case",
-      targetId: "case-a",
-    });
-    expect(batches).toHaveLength(1);
-    expect(batches[0]).toHaveLength(2);
+    const moderationCase: ModerationCase = {
+      id: "case-collision",
+      guildId: "guild-b",
+      targetUserId: "user-b",
+      action: "note",
+      reason: "Must remain guild scoped",
+      status: "open",
+      createdAt: "2026-08-09T12:00:00.000Z",
+      updatedAt: "2026-08-09T12:00:00.000Z",
+    };
+
+    await expect(
+      saveModerationCaseInDb(
+        { id: "guild-b", name: "Guild B" },
+        moderationCase,
+        db,
+      ),
+    ).rejects.toThrow(
+      "Moderation case id is already assigned to another guild",
+    );
+
+    const conflict = findInsert(inserts, moderationCases).conflict?.config as
+      | { setWhere?: SQL }
+      | undefined;
+    expect(sqlParams(conflict?.setWhere)).toContain("guild-b");
   });
 });

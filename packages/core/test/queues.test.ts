@@ -32,10 +32,16 @@ describe("queues", () => {
       id: "ticket_escalated",
       status: "escalated" as const,
     };
+    const claimed = {
+      ...high,
+      id: "ticket_claimed",
+      status: "claimed" as const,
+      assignedTo: "mentor-1",
+    };
 
     expect(
-      orderQueue([low, high, escalated]).map((ticket) => ticket.id),
-    ).toEqual(["ticket_escalated", high.id, low.id]);
+      orderQueue([claimed, low, high, escalated]).map((ticket) => ticket.id),
+    ).toEqual(["ticket_escalated", high.id, low.id, "ticket_claimed"]);
   });
 
   it("moves tickets through claim and close states", () => {

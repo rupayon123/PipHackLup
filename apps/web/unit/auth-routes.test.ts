@@ -140,15 +140,17 @@ describe("Discord OAuth callback route", () => {
       label: "missing authorization code",
       query: `state=${STATE}`,
       stateIsValid: true,
+      expectedStatus: "failed",
     },
     {
       label: "invalid state",
       query: `code=authorization-code&state=${"b".repeat(32)}`,
       stateIsValid: false,
+      expectedStatus: "expired",
     },
   ])(
     "rejects $label without creating a session",
-    async ({ query, stateIsValid }) => {
+    async ({ query, stateIsValid, expectedStatus }) => {
       authMocks.consumeOauthStateCookie.mockResolvedValue(stateIsValid);
       const warn = vi
         .spyOn(console, "warn")
@@ -160,7 +162,7 @@ describe("Discord OAuth callback route", () => {
         );
 
         expect(response.headers.get("location")).toBe(
-          `${APP_URL}/dashboard?auth=failed`,
+          `${APP_URL}/dashboard?auth=${expectedStatus}`,
         );
         expect(authMocks.consumeOauthStateCookie).toHaveBeenCalledOnce();
         expect(authMocks.createDiscordSessionFromCode).not.toHaveBeenCalled();
@@ -170,6 +172,21 @@ describe("Discord OAuth callback route", () => {
       }
     },
   );
+
+  it("maps a valid Discord access denial to friendly canceled copy", async () => {
+    const response = await finishDiscordOauth(
+      new NextRequest(
+        `${APP_URL}/api/auth/discord/callback?error=access_denied&state=${STATE}`,
+      ),
+    );
+
+    expect(authMocks.consumeOauthStateCookie).toHaveBeenCalledWith(STATE);
+    expect(response.headers.get("location")).toBe(
+      `${APP_URL}/dashboard?auth=denied`,
+    );
+    expect(authMocks.createDiscordSessionFromCode).not.toHaveBeenCalled();
+    expect(authMocks.setDiscordSessionCookie).not.toHaveBeenCalled();
+  });
 
   it("consumes state, creates a session, sets its cookie, and redirects", async () => {
     const request = new NextRequest(

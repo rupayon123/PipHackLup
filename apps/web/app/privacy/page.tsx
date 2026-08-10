@@ -29,6 +29,28 @@ export default function PrivacyPage() {
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
+        <h2>Discord Login and Sessions</h2>
+        <p className="small">
+          When an organizer signs in, PipHackLup stores their Discord account
+          ID, username, display name, avatar reference, and the servers where
+          Discord currently shows Owner, Administrator, or Manage Server access.
+          Discord access and refresh tokens are stored server-side in encrypted
+          form so PipHackLup can refresh that list and recheck permission before
+          each organizer action. The browser receives only an opaque, HttpOnly
+          session cookie; the database stores a hash of its random session token
+          rather than the token itself.
+        </p>
+        <p className="small">
+          Dashboard sessions expire after 12 hours and are revoked when sign-out
+          completes. The encrypted Discord account record can remain after a
+          session expires so an active login can refresh safely; PipHackLup does
+          not currently promise automatic deletion on a fixed schedule. You can
+          revoke the app in Discord and use the private deletion path below to
+          request removal of the stored account and event records.
+        </p>
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
         <h2>Message Content</h2>
         <p className="small">
           PipHackLup is designed to work without Discord's Message Content

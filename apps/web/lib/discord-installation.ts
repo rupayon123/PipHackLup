@@ -6,6 +6,10 @@ interface DiscordBotGuildResponse {
   id: string;
 }
 
+interface DiscordApplicationResponse {
+  id: string;
+}
+
 export interface DiscordGuildOption {
   id: string;
   name: string;
@@ -76,6 +80,36 @@ export function getDiscordInstallUrl(guildId?: string): string {
 
 export function isDiscordBotApiConfigured(): boolean {
   return Boolean(process.env.DISCORD_TOKEN);
+}
+
+export async function verifyDiscordBotApplication(
+  fetchImplementation: typeof fetch = fetch,
+): Promise<void> {
+  const expectedClientId = process.env.DISCORD_CLIENT_ID;
+  if (!expectedClientId || !DISCORD_SNOWFLAKE.test(expectedClientId)) {
+    throw new Error("DISCORD_CLIENT_ID is required for bot verification.");
+  }
+  const response = await fetchImplementation(
+    `${DISCORD_API}/oauth2/applications/@me`,
+    {
+      headers: { authorization: `Bot ${getDiscordBotToken()}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  if (!response.ok) {
+    throw new DiscordBotApiError(
+      "Discord could not verify the bot application.",
+      response.status,
+    );
+  }
+  const body = (await response.json()) as unknown;
+  if (!isDiscordApplicationResponse(body) || body.id !== expectedClientId) {
+    throw new DiscordBotApiError(
+      "Discord bot credentials do not match the configured application.",
+      502,
+    );
+  }
 }
 
 export async function listDiscordBotGuildIds(
@@ -215,7 +249,11 @@ export function parseDiscordChannelOptions(
 ): DiscordGuildOption[] | null {
   if (!Array.isArray(value) || value.length > 1_000) return null;
   const channels: DiscordChannelResponse[] = [];
-  const selectableTypes = new Set([0, 5, 15]);
+  // PipHackLup posts directly to configured channels and /setup reconciles
+  // GuildText channels only. Announcement and forum channels have different
+  // posting semantics, so presenting them as interchangeable would save a
+  // configuration the bot cannot safely honor.
+  const selectableTypes = new Set([0]);
   for (const item of value) {
     if (!isRecord(item)) return null;
     const { id, name, position, type } = item;
@@ -262,6 +300,16 @@ function isDiscordBotGuildResponse(
   if (!value || typeof value !== "object") return false;
   return (
     "id" in value &&
+    typeof value.id === "string" &&
+    DISCORD_SNOWFLAKE.test(value.id)
+  );
+}
+
+function isDiscordApplicationResponse(
+  value: unknown,
+): value is DiscordApplicationResponse {
+  return (
+    isRecord(value) &&
     typeof value.id === "string" &&
     DISCORD_SNOWFLAKE.test(value.id)
   );

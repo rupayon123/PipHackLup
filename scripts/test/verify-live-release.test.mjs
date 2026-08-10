@@ -21,6 +21,7 @@ const GUILD_ID = "1536112346458624091";
 const GUILD_NAME = "PipHackLup Release Lab";
 const BOT_TOKEN = "test_token_value_that_is_long_enough";
 const OAUTH_STATE = "a".repeat(32);
+const RELEASE_SHA = "be10970eb0770448cd507a1ebccf67809bb0bd75";
 
 test("default expected commands mirror the bot's top-level slash commands", async () => {
   const definitions = await readFile(
@@ -38,7 +39,14 @@ test("default expected commands mirror the bot's top-level slash commands", asyn
 
 test("buildConfiguration keeps Discord disabled unless explicitly requested", () => {
   const configuration = buildConfiguration(
-    parseArguments(["--base-url", BASE_URL, "--expected-client-id", CLIENT_ID]),
+    parseArguments([
+      "--base-url",
+      BASE_URL,
+      "--expected-client-id",
+      CLIENT_ID,
+      "--expected-release-sha",
+      RELEASE_SHA,
+    ]),
     {
       DISCORD_CLIENT_ID: CLIENT_ID,
       DISCORD_TOKEN: BOT_TOKEN,
@@ -58,6 +66,8 @@ test("Discord guild options require the explicit read-only opt-in", () => {
           BASE_URL,
           "--expected-client-id",
           CLIENT_ID,
+          "--expected-release-sha",
+          RELEASE_SHA,
           "--test-guild-id",
           GUILD_ID,
         ]),
@@ -72,6 +82,8 @@ test("Discord verification requires environment-only credentials and exact guild
     BASE_URL,
     "--expected-client-id",
     CLIENT_ID,
+    "--expected-release-sha",
+    RELEASE_SHA,
     "--discord-read-only",
     "--test-guild-id",
     GUILD_ID,
@@ -134,6 +146,35 @@ test("mutation and unknown CLI options fail closed", () => {
       assert.equal(error.message.includes("accidental-secret-value"), false);
       return true;
     },
+  );
+});
+
+test("the web gate requires an exact release commit", () => {
+  assert.throws(
+    () =>
+      buildConfiguration(
+        parseArguments([
+          "--base-url",
+          BASE_URL,
+          "--expected-client-id",
+          CLIENT_ID,
+        ]),
+      ),
+    /--expected-release-sha/u,
+  );
+  assert.throws(
+    () =>
+      buildConfiguration(
+        parseArguments([
+          "--base-url",
+          BASE_URL,
+          "--expected-client-id",
+          CLIENT_ID,
+          "--expected-release-sha",
+          "not-a-commit",
+        ]),
+      ),
+    /40-character Git commit SHA/u,
   );
 });
 
@@ -217,6 +258,28 @@ test("web verification fails when health is not ready or a fixture is exposed", 
     await assert.rejects(
       verifyWebRelease(webConfiguration(), transport),
       /Web health returned HTTP 503/u,
+    );
+  });
+
+  await context.test("wrong deployed release", async () => {
+    const transport = async (input) => {
+      if (new URL(input).pathname === "/api/health") {
+        return jsonResponse(
+          {
+            ok: true,
+            app: "PipHackLup web",
+            status: "ready",
+            release: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          },
+          200,
+          { "cache-control": "no-store" },
+        );
+      }
+      throw new Error("unexpected request");
+    };
+    await assert.rejects(
+      verifyWebRelease(webConfiguration(), transport),
+      /expected ready release/u,
     );
   });
 
@@ -419,6 +482,7 @@ function webConfiguration() {
   return {
     baseUrl: BASE_URL,
     expectedDiscordClientId: CLIENT_ID,
+    expectedReleaseSha: RELEASE_SHA,
     timeoutMs: 5_000,
   };
 }
@@ -434,6 +498,7 @@ function liveDiscordConfiguration() {
       token: BOT_TOKEN,
     },
     expectedDiscordClientId: CLIENT_ID,
+    expectedReleaseSha: RELEASE_SHA,
     timeoutMs: 5_000,
   };
 }
@@ -463,7 +528,12 @@ function createHappyWebTransport(
 
     if (url.pathname === "/api/health") {
       return jsonResponse(
-        { ok: true, app: "PipHackLup web", status: "ready" },
+        {
+          ok: true,
+          app: "PipHackLup web",
+          status: "ready",
+          release: RELEASE_SHA,
+        },
         200,
         { "cache-control": "private, no-store" },
       );

@@ -38,11 +38,16 @@ export interface QueueWorkerAuthorizationInput {
     | readonly (string | null | undefined)[]
     | null
     | undefined;
+  readonly judgeRoleIds?:
+    | readonly (string | null | undefined)[]
+    | null
+    | undefined;
 }
 
 export interface QueueWorkerAuthorization {
   readonly fullStaff: boolean;
   readonly mentorWorker: boolean;
+  readonly judgeWorker: boolean;
 }
 
 export interface QueueTicketAuthorizationInput extends QueueWorkerAuthorization {
@@ -89,6 +94,7 @@ export function resolveQueueWorkerAuthorization(
   return {
     fullStaff,
     mentorWorker: hasConfiguredRole(input.roles, input.mentorRoleIds ?? []),
+    judgeWorker: hasConfiguredRole(input.roles, input.judgeRoleIds ?? []),
   };
 }
 
@@ -98,17 +104,22 @@ export function canViewQueueTicket(
   return (
     input.fullStaff ||
     isTicketRequester(input) ||
-    (input.mentorWorker && input.kind !== "staff")
+    (input.mentorWorker && input.kind !== "staff") ||
+    (input.judgeWorker && input.kind === "judging")
   );
 }
 
 export function canManageQueueTicket(
   input: Pick<
     QueueTicketAuthorizationInput,
-    "fullStaff" | "mentorWorker" | "kind"
+    "fullStaff" | "mentorWorker" | "judgeWorker" | "kind"
   >,
 ): boolean {
-  return input.fullStaff || (input.mentorWorker && input.kind !== "staff");
+  return (
+    input.fullStaff ||
+    (input.mentorWorker && input.kind !== "staff") ||
+    (input.judgeWorker && input.kind === "judging")
+  );
 }
 
 export function canCloseQueueTicketWithWorkerAccess(

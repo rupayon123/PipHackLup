@@ -17,7 +17,9 @@ RUN pnpm --filter @piphacklup/bot build
 
 FROM base AS runner
 WORKDIR /app
+ARG PIPHACKLUP_RELEASE_SHA=unknown
 ENV NODE_ENV=production
+ENV PIPHACKLUP_RELEASE_SHA=${PIPHACKLUP_RELEASE_SHA}
 COPY --from=build /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/apps/bot apps/bot

@@ -50,6 +50,7 @@ import {
   botRateLimitPolicies,
   checkBotRateLimit,
 } from "../lib/rate-limit.js";
+import { resolveRoleNotificationTarget } from "../lib/role-notification.js";
 import { buildPanelActionRow } from "../lib/panel-actions.js";
 import {
   buildSetupReportSections,
@@ -181,8 +182,11 @@ async function handleAsk(
 
   const question = interaction.options.getString("question", true);
   const result = answerHackathonQuestion(question, entries, settings);
-  const privateReply =
+  const requestedPrivateReply =
     interaction.options.getBoolean("private") ?? !settings.publicAnswers;
+  const staffEscalation =
+    result.shouldEscalate && result.escalationTarget !== "mentor";
+  const privateReply = requestedPrivateReply || staffEscalation;
   const embed = buildKnowledgeAnswerEmbed(result);
 
   if (privateReply) {
@@ -738,11 +742,17 @@ async function sendKnowledgeEscalation(
     return;
   }
 
-  const roleMention = roleId
-    ? `<@&${roleId}>`
-    : escalationTarget === "mentor"
-      ? "Mentors"
-      : "Staff";
+  const roleNotification = interaction.guild
+    ? await resolveRoleNotificationTarget(
+        interaction.guild,
+        roleId,
+        escalationTarget === "mentor" ? "Mentors" : "Staff",
+      )
+    : {
+        label: escalationTarget === "mentor" ? "Mentors" : "Staff",
+        userIds: [],
+        truncated: false,
+      };
   const embed = new EmbedBuilder()
     .setTitle(`PipHackLup Q&A escalation (${ticket.id})`)
     .setDescription(
@@ -770,17 +780,15 @@ async function sendKnowledgeEscalation(
 
   try {
     await channel.send({
-      content: `${roleMention} PipHackLup needs a human answer for this participant question.`,
+      content: `${roleNotification.label} PipHackLup needs a human answer for this participant question.${roleNotification.truncated ? " Additional role holders can review the durable queue." : ""}`,
       embeds: [embed],
-      allowedMentions: roleId
-        ? {
-            roles: [roleId],
-            users: requiresStaffPrivateChannel ? [interaction.user.id] : [],
-          }
-        : {
-            users: requiresStaffPrivateChannel ? [interaction.user.id] : [],
-            roles: [],
-          },
+      allowedMentions: {
+        roles: [],
+        users: [
+          ...roleNotification.userIds,
+          ...(requiresStaffPrivateChannel ? [interaction.user.id] : []),
+        ],
+      },
     });
   } catch {
     await interaction.followUp({
@@ -1043,6 +1051,7 @@ async function handleQueue(
             settings.staffRoleId,
           ],
           mentorRoleIds: [config.roles.mentor, settings.mentorRoleId],
+          judgeRoleIds: [config.roles.judge],
         });
       } catch (error) {
         logPersistenceFailure(
@@ -1123,6 +1132,7 @@ async function handleQueue(
       settings.staffRoleId,
     ],
     mentorRoleIds: [config.roles.mentor, settings.mentorRoleId],
+    judgeRoleIds: [config.roles.judge],
   });
 
   const workerAuthorized = canManageQueueTicket({
@@ -1135,7 +1145,7 @@ async function handleQueue(
   ) {
     await interaction.editReply({
       content:
-        "You are not authorized to manage that ticket. Staff can manage every queue; configured mentors can manage non-staff tickets.",
+        "You are not authorized to manage that ticket. Staff can manage every queue; configured mentors can manage non-staff tickets, and configured judges can manage judging tickets.",
     });
     return;
   }
@@ -1315,13 +1325,6 @@ async function handleTeam(
     return;
   }
 
-  if (!hasManageGuildPermission(interaction.memberPermissions)) {
-    await interaction.editReply({
-      content: "You need Manage Server to run team matching suggestions.",
-    });
-    return;
-  }
-
   let snapshot;
   try {
     snapshot = await hydrateGuildOperationalState(guildId);
@@ -1333,15 +1336,55 @@ async function handleTeam(
     return;
   }
 
-  const matches = suggestTeamMatches(snapshot.profiles, snapshot.teams, 5);
-  const lines = matches.map(
-    (match) =>
-      `Team \`${match.teamId}\`: add ${match.addedMemberIds.map((id) => `<@${id}>`).join(", ")} (score ${match.score})`,
+  const organizerView = hasManageGuildPermission(interaction.memberPermissions);
+  const matches = suggestTeamMatches(
+    snapshot.profiles,
+    snapshot.teams,
+    organizerView ? 5 : Math.max(snapshot.teams.length, 5),
   );
+  const teamsById = new Map(snapshot.teams.map((team) => [team.id, team]));
+  const profile = snapshot.profiles.find(
+    (candidate) => candidate.userId === interaction.user.id,
+  );
+  const ownedTeamIds = new Set(
+    snapshot.teams
+      .filter((team) => team.ownerId === interaction.user.id)
+      .map((team) => team.id),
+  );
+  if (!organizerView && !profile?.lookingForTeam && ownedTeamIds.size === 0) {
+    await interaction.editReply({
+      content:
+        "Run `/team profile` to opt into private match suggestions, or `/team create` if you are recruiting.",
+    });
+    return;
+  }
+
+  const lines = organizerView
+    ? matches.map(
+        (match) =>
+          `Team \`${match.teamId}\`: add ${match.addedMemberIds.map((id) => `<@${id}>`).join(", ")} (score ${match.score})`,
+      )
+    : matches.flatMap((match) => {
+        const team = teamsById.get(match.teamId);
+        if (!team) return [];
+        if (ownedTeamIds.has(team.id)) {
+          return [
+            `Your team **${team.name}** could invite ${match.addedMemberIds.map((id) => `<@${id}>`).join(", ")}.`,
+          ];
+        }
+        if (match.addedMemberIds.includes(interaction.user.id)) {
+          return [
+            `You may be a good fit for **${team.name}**. Share ticket \`${team.id}\` with the team owner if you want an introduction.`,
+          ];
+        }
+        return [];
+      });
   await interaction.editReply({
     content: lines.length
       ? lines.join("\n")
-      : "No strong team matches yet. Ask participants to run `/team profile`.",
+      : organizerView
+        ? "No strong team matches yet. Ask participants to run `/team profile`."
+        : "No private match suggestions are ready for you yet. Your opt-in profile is saved; try again as more teams and participants join.",
   });
 }
 
@@ -1399,20 +1442,6 @@ async function handleMod(
       return;
     }
 
-    try {
-      const member = await interaction.guild.members.fetch(user.id);
-      await member.timeout(minutes * 60_000, reason);
-    } catch {
-      console.error(
-        `PipHackLup Discord timeout action failed for member ${user.id} in guild ${guildId}.`,
-      );
-      await interaction.editReply({
-        content:
-          "I could not apply that Discord timeout. Check my Moderate Members permission and role position. No timeout case was recorded.",
-      });
-      return;
-    }
-
     const moderationCase = createModerationCase({
       guildId,
       targetUserId: user.id,
@@ -1424,15 +1453,73 @@ async function handleMod(
       await persistModerationCaseWithAudit(guildIdentity, moderationCase, {
         guildId,
         actorId: interaction.user.id,
-        action: "mod.timeout",
+        action: "mod.timeout.requested",
         targetType: "case",
         targetId: moderationCase.id,
-        metadata: { targetUserId: user.id, minutes },
+        metadata: { targetUserId: user.id, minutes, state: "pending" },
       });
     } catch (error) {
-      logPersistenceFailure(guildId, "save and audit timeout case", error);
+      logPersistenceFailure(
+        guildId,
+        "save and audit pending timeout case",
+        error,
+      );
       await interaction.editReply({
-        content: `Discord timed out <@${user.id}>, but PipHackLup could not ${persistenceOperationName(error)}. The timeout is active and the moderation case/audit record is missing; tell an organizer immediately.`,
+        content: `PipHackLup could not ${persistenceOperationName(error)}, so no Discord timeout was applied. A durable pending case is required before moderation changes are sent to Discord.`,
+      });
+      return;
+    }
+
+    try {
+      const member = await interaction.guild.members.fetch(user.id);
+      await member.timeout(minutes * 60_000, reason);
+    } catch {
+      console.error(
+        `PipHackLup Discord timeout action failed for member ${user.id} in guild ${guildId}.`,
+      );
+      try {
+        await persistModerationCaseWithAudit(
+          guildIdentity,
+          {
+            ...moderationCase,
+            status: "resolved",
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            guildId,
+            actorId: interaction.user.id,
+            action: "mod.timeout.failed",
+            targetType: "case",
+            targetId: moderationCase.id,
+            metadata: { targetUserId: user.id, minutes, state: "failed" },
+          },
+        );
+      } catch (error) {
+        logPersistenceFailure(guildId, "record failed Discord timeout", error);
+      }
+      await interaction.editReply({
+        content: `I could not apply that Discord timeout. Check my Moderate Members permission and role position. Durable case \`${moderationCase.id}\` records the requested action for staff review.`,
+      });
+      return;
+    }
+
+    try {
+      await persistModerationCaseWithAudit(
+        guildIdentity,
+        { ...moderationCase, updatedAt: new Date().toISOString() },
+        {
+          guildId,
+          actorId: interaction.user.id,
+          action: "mod.timeout.applied",
+          targetType: "case",
+          targetId: moderationCase.id,
+          metadata: { targetUserId: user.id, minutes, state: "applied" },
+        },
+      );
+    } catch (error) {
+      logPersistenceFailure(guildId, "finalize timeout case", error);
+      await interaction.editReply({
+        content: `Discord timed out <@${user.id}>, but PipHackLup could not ${persistenceOperationName(error)} for the final state. Durable case \`${moderationCase.id}\` remains pending so an organizer can reconcile it safely.`,
       });
       return;
     }

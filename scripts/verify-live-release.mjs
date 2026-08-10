@@ -7,6 +7,7 @@ const DISCORD_OAUTH_PATH = "/oauth2/authorize";
 const SNOWFLAKE_PATTERN = /^[1-9]\d{16,19}$/u;
 const COMMAND_NAME_PATTERN = /^[a-z0-9_-]{1,32}$/u;
 const OAUTH_STATE_PATTERN = /^[A-Za-z0-9_-]{32}$/u;
+const RELEASE_SHA_PATTERN = /^[a-f\d]{40}$/iu;
 const REDIRECT_STATUSES = new Set([302, 303, 307]);
 const LOCAL_HTTP_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const MUTATION_ARGUMENTS = new Set([
@@ -94,6 +95,10 @@ export function parseArguments(argv) {
         assertOptionUsedOnce(singletonOptions, argument);
         parsed.expectedGuildName = readArgumentValue(argv, ++index, argument);
         break;
+      case "--expected-release-sha":
+        assertOptionUsedOnce(singletonOptions, argument);
+        parsed.expectedReleaseSha = readArgumentValue(argv, ++index, argument);
+        break;
       case "--help":
       case "-h":
         parsed.help = true;
@@ -130,10 +135,19 @@ export function buildConfiguration(parsed, environment = process.env) {
       "--expected-client-id must be the deployed Discord application's snowflake.",
     );
   }
+  if (
+    !parsed.expectedReleaseSha ||
+    !RELEASE_SHA_PATTERN.test(parsed.expectedReleaseSha)
+  ) {
+    throw new VerificationError(
+      "--expected-release-sha must be the exact 40-character Git commit SHA.",
+    );
+  }
 
   const configuration = {
     baseUrl: normalizeBaseUrl(parsed.baseUrl, parsed.allowLocalHttp),
     expectedDiscordClientId: parsed.expectedClientId,
+    expectedReleaseSha: parsed.expectedReleaseSha.toLowerCase(),
     timeoutMs: parsed.timeoutMs,
   };
 
@@ -271,10 +285,11 @@ export async function verifyWebRelease(
     !isRecord(health) ||
     health.ok !== true ||
     health.app !== "PipHackLup web" ||
-    health.status !== "ready"
+    health.status !== "ready" ||
+    health.release !== configuration.expectedReleaseSha
   ) {
     throw new VerificationError(
-      "Web health did not report PipHackLup as ready.",
+      "Web health did not report the expected ready release.",
     );
   }
   if (!hasNoStoreDirective(healthResponse.headers.get("cache-control"))) {
@@ -282,7 +297,10 @@ export async function verifyWebRelease(
       "Web health is missing the required no-store cache directive.",
     );
   }
-  results.push({ check: "web-health", detail: "ready" });
+  results.push({
+    check: "web-health",
+    detail: `ready at ${configuration.expectedReleaseSha.slice(0, 12)}`,
+  });
 
   const authResponse = await requestReadOnly(
     fetchImplementation,
@@ -746,13 +764,15 @@ function printUsage() {
   console.log(`Usage:
   node scripts/verify-live-release.mjs \\
     --base-url https://piphacklup.vercel.app \\
-    --expected-client-id 123456789012345678
+    --expected-client-id 123456789012345678 \\
+    --expected-release-sha 0123456789abcdef0123456789abcdef01234567
 
 Optional isolated Discord verification (GET requests only, with DISCORD_CLIENT_ID
 and DISCORD_TOKEN already injected by a secure environment/secret store):
   node scripts/verify-live-release.mjs \\
     --base-url https://piphacklup.vercel.app \\
     --expected-client-id 123456789012345678 \\
+    --expected-release-sha 0123456789abcdef0123456789abcdef01234567 \\
     --discord-read-only \\
     --test-guild-id 123456789012345678 \\
     --expected-guild-name "PipHackLup Release Lab"
@@ -760,6 +780,7 @@ and DISCORD_TOKEN already injected by a secure environment/secret store):
 Options:
   --base-url URL              Deployed web origin (required)
   --expected-client-id ID     Exact deployed Discord application snowflake
+  --expected-release-sha SHA  Exact deployed 40-character Git commit SHA
   --timeout-ms MS             Per-request timeout, 1000-30000 (default 10000)
   --allow-local-http          Permit HTTP only for localhost/loopback testing
   --discord-read-only         Explicitly enable isolated Discord GET checks

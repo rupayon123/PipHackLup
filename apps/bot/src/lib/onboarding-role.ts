@@ -1,6 +1,10 @@
 import { GuildMember, MessageFlags, type ButtonInteraction } from "discord.js";
 import type { OnboardingMode } from "@piphacklup/core";
-import { isSafeAutomaticAssignmentRole } from "./automatic-role-safety.js";
+import {
+  allowedAutomaticRoleChannelGrants,
+  hasOnlyAllowedAutomaticRoleChannelGrants,
+  isSafeAutomaticAssignmentRole,
+} from "./automatic-role-safety.js";
 import {
   loadPersistentGuildConfig,
   persistAuditEvent,
@@ -148,10 +152,17 @@ export async function handleOnboardingRulesAcknowledgement(
     ...(newcomerRoleId ? { newcomerRoleId } : {}),
     memberRoleIds: member.roles.cache.keys(),
     participantRoleAvailable: participantRole !== null,
-    participantRoleSafe: isSafeAutomaticAssignmentRole(
-      participantRole,
-      interaction.guild.roles.everyone.id,
-    ),
+    participantRoleSafe:
+      isSafeAutomaticAssignmentRole(
+        participantRole,
+        interaction.guild.roles.everyone.id,
+      ) &&
+      (!participantRole ||
+        hasOnlyAllowedAutomaticRoleChannelGrants(
+          participantRole.id,
+          interaction.guild.channels.cache.values(),
+          allowedAutomaticRoleChannelGrants(config, "participant"),
+        )),
     participantRoleManageable: participantRole?.editable ?? false,
     newcomerRoleManageable:
       !newcomerRoleId || !member.roles.cache.has(newcomerRoleId)

@@ -104,6 +104,8 @@ describe("getMissingSetupPermissions", () => {
 
     expect(missing).not.toContain("Manage Roles");
     expect(missing).not.toContain("Manage Channels");
+    expect(missing).toContain("Manage Nicknames");
+    expect(missing).toContain("Moderate Members");
     expect(missing).toContain("Send Messages");
     expect(missing).toContain("Read Message History");
   });

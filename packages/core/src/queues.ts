@@ -75,11 +75,22 @@ export function cancelTicket(
 export function orderQueue(tickets: QueueTicket[]): QueueTicket[] {
   return tickets
     .filter(
-      (ticket) => ticket.status === "open" || ticket.status === "escalated",
+      (ticket) =>
+        ticket.status === "open" ||
+        ticket.status === "claimed" ||
+        ticket.status === "escalated",
     )
     .toSorted((left, right) => {
-      if (left.status !== right.status)
-        return left.status === "escalated" ? -1 : 1;
+      const statusRank: Record<QueueTicket["status"], number> = {
+        escalated: 0,
+        open: 1,
+        claimed: 2,
+        closed: 3,
+        canceled: 3,
+      };
+      if (left.status !== right.status) {
+        return statusRank[left.status] - statusRank[right.status];
+      }
       if (left.priority !== right.priority)
         return right.priority - left.priority;
       return left.createdAt.localeCompare(right.createdAt);

@@ -16,8 +16,12 @@ import {
   buildHealthStatus,
   buildProbedHealthStatus,
   createDatabaseHealthProbe,
+  resolveReleaseIdentifier,
 } from "./lib/health.js";
-import { isSafeAutomaticAssignmentRole } from "./lib/automatic-role-safety.js";
+import {
+  hasOnlyAllowedAutomaticRoleChannelGrants,
+  isSafeAutomaticAssignmentRole,
+} from "./lib/automatic-role-safety.js";
 import { safelyHandleDiscordEvent } from "./lib/discord-event-safety.js";
 import {
   buildWelcomeMessage,
@@ -37,6 +41,7 @@ import {
   getPanelActionResponse,
   onboardingRulesAcknowledgementId,
 } from "./lib/panel-actions.js";
+import { resolveRoleNotificationTarget } from "./lib/role-notification.js";
 import { handleOnboardingRulesAcknowledgement } from "./lib/onboarding-role.js";
 import {
   evictGuildOperationalCache,
@@ -183,6 +188,10 @@ client.on(Events.GuildMemberAdd, async (member) => {
       isSafeAutomaticAssignmentRole(
         newcomerRole,
         member.guild.roles.everyone.id,
+      ) &&
+      hasOnlyAllowedAutomaticRoleChannelGrants(
+        newcomerRole.id,
+        member.guild.channels.cache.values(),
       )
     ) {
       await member.roles
@@ -377,19 +386,22 @@ client.on(Events.MessageCreate, (message) => {
     }
 
     if (isSendableChannel(channel)) {
+      const roleNotification = await resolveRoleNotificationTarget(
+        guild,
+        roleId,
+        target === "mentor" ? "Mentors" : "Staff",
+      );
       await channel
         .send({
-          content: `${roleId ? `<@&${roleId}>` : target === "mentor" ? "Mentors" : "Staff"} PipHackLup needs a human answer for this participant question.`,
+          content: `${roleNotification.label} PipHackLup needs a human answer for this participant question.${roleNotification.truncated ? " Additional role holders can review the durable queue." : ""}`,
           embeds: [escalationEmbed],
-          allowedMentions: roleId
-            ? {
-                roles: [roleId],
-                users: requiresStaffPrivateChannel ? [message.author.id] : [],
-              }
-            : {
-                users: requiresStaffPrivateChannel ? [message.author.id] : [],
-                roles: [],
-              },
+          allowedMentions: {
+            roles: [],
+            users: [
+              ...roleNotification.userIds,
+              ...(requiresStaffPrivateChannel ? [message.author.id] : []),
+            ],
+          },
         })
         .catch(async () => {
           await message
@@ -517,6 +529,7 @@ async function respondToHealthRequest(response: ServerResponse): Promise<void> {
   const input = {
     discordReady: client.isReady(),
     ...(client.user?.tag ? { botTag: client.user.tag } : {}),
+    release: resolveReleaseIdentifier(process.env),
     databaseConfigured,
     databaseInitializationComplete: startupHydrationComplete,
     databaseStateReady:

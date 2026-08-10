@@ -517,6 +517,8 @@ function getAuthMessage(status: string | null): string | undefined {
       return "Discord sign-in is not configured on this deployment yet.";
     case "logout_incomplete":
       return "You are signed out on this browser. PipHackLup could not immediately end the previous server session. It will retry while this page is open and when this browser returns; that session expires automatically within 12 hours.";
+    case "logout_requires_post":
+      return "For your safety, sign-out only works from the button inside PipHackLup. Your session was not changed.";
     default:
       return undefined;
   }

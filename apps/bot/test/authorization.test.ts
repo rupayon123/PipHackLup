@@ -178,26 +178,27 @@ describe("queue worker authorization", () => {
         fullStaffRoleIds: ["organizer", "moderator", "settings-staff"],
         mentorRoleIds: ["config-mentor", "settings-mentor"],
       }),
-    ).toEqual({ fullStaff: false, mentorWorker: true });
+    ).toEqual({ fullStaff: false, mentorWorker: true, judgeWorker: false });
     expect(
       resolveQueueWorkerAuthorization({
         roles: ["settings-mentor"],
         mentorRoleIds: ["config-mentor", "settings-mentor"],
       }),
-    ).toEqual({ fullStaff: false, mentorWorker: true });
+    ).toEqual({ fullStaff: false, mentorWorker: true, judgeWorker: false });
     expect(
       resolveQueueWorkerAuthorization({
         roles: ["settings-staff"],
         fullStaffRoleIds: ["settings-staff"],
         mentorRoleIds: ["settings-mentor"],
       }),
-    ).toEqual({ fullStaff: true, mentorWorker: false });
+    ).toEqual({ fullStaff: true, mentorWorker: false, judgeWorker: false });
   });
 
   it("never exposes or delegates another requester's staff ticket to mentors", () => {
     const mentorAccess = {
       fullStaff: false,
       mentorWorker: true,
+      judgeWorker: false,
       actorId: "mentor-user",
       requesterId: "safety-requester",
       kind: "staff",
@@ -212,6 +213,7 @@ describe("queue worker authorization", () => {
     const mentorTicket = {
       fullStaff: false,
       mentorWorker: true,
+      judgeWorker: false,
       actorId: "mentor-user",
       requesterId: "participant-user",
       kind: "mentor",
@@ -223,6 +225,7 @@ describe("queue worker authorization", () => {
     const ownStaffTicket = {
       fullStaff: false,
       mentorWorker: false,
+      judgeWorker: false,
       actorId: "participant-user",
       requesterId: "participant-user",
       kind: "staff",
@@ -246,5 +249,39 @@ describe("queue worker authorization", () => {
     expect(canViewQueueTicket(staffTicket)).toBe(true);
     expect(canManageQueueTicket(staffTicket)).toBe(true);
     expect(canCloseQueueTicketWithWorkerAccess(staffTicket)).toBe(true);
+  });
+
+  it("limits configured judges to judging tickets", () => {
+    const judgeAccess = resolveQueueWorkerAuthorization({
+      roles: ["judge-role"],
+      judgeRoleIds: ["judge-role"],
+    });
+    expect(judgeAccess).toEqual({
+      fullStaff: false,
+      mentorWorker: false,
+      judgeWorker: true,
+    });
+    expect(
+      canViewQueueTicket({
+        ...judgeAccess,
+        actorId: "judge-user",
+        requesterId: "participant-user",
+        kind: "judging",
+      }),
+    ).toBe(true);
+    expect(canManageQueueTicket({ ...judgeAccess, kind: "judging" })).toBe(
+      true,
+    );
+    expect(canManageQueueTicket({ ...judgeAccess, kind: "mentor" })).toBe(
+      false,
+    );
+    expect(
+      canViewQueueTicket({
+        ...judgeAccess,
+        actorId: "judge-user",
+        requesterId: "safety-user",
+        kind: "staff",
+      }),
+    ).toBe(false);
   });
 });

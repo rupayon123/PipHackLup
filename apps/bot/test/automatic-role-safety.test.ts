@@ -1,6 +1,9 @@
 import { PermissionFlagsBits, PermissionsBitField } from "discord.js";
+import type { EventConfig } from "@piphacklup/core";
 import { describe, expect, it } from "vitest";
 import {
+  allowedAutomaticRoleChannelGrants,
+  hasOnlyAllowedAutomaticRoleChannelGrants,
   isSafeAutomaticAssignmentRole,
   selectReusableAutomaticAssignmentRole,
   selectReusableSensitiveSetupRole,
@@ -147,5 +150,106 @@ describe("automatic assignment role safety", () => {
         memberInventoryComplete: false,
       }),
     ).toBeUndefined();
+  });
+
+  it("rejects name-only automatic roles with any pre-existing channel grant", () => {
+    const candidate = role("matching-participant");
+    const channels = [
+      {
+        id: "unrelated-private-channel",
+        permissionOverwrites: {
+          cache: new Map([
+            [
+              candidate.id,
+              {
+                id: candidate.id,
+                allow: new PermissionsBitField(PermissionFlagsBits.ViewChannel),
+              },
+            ],
+          ]),
+        },
+      },
+    ];
+
+    expect(
+      selectReusableAutomaticAssignmentRole({
+        matchingRoles: [candidate],
+        everyoneRoleId: "everyone",
+        memberInventoryComplete: true,
+        isNameCandidateChannelSafe: (roleCandidate) =>
+          hasOnlyAllowedAutomaticRoleChannelGrants(roleCandidate.id, channels),
+      }),
+    ).toBeUndefined();
+  });
+
+  it("permits only the documented participant grants on configured event channels", () => {
+    const config: EventConfig = {
+      guildId: "guild-a",
+      eventName: "Hack North",
+      onboardingMode: "gated" as const,
+      teamSizeMin: 2,
+      teamSizeMax: 4,
+      queueKinds: ["mentor", "tech", "judging", "staff"],
+      roles: { participant: "participant" },
+      channels: {
+        announcements: "announcements",
+        helpDesk: "help",
+        teamCatalog: "teams",
+      },
+    };
+    const allowed = allowedAutomaticRoleChannelGrants(config, "participant");
+    const safeChannels = [
+      {
+        id: "help",
+        permissionOverwrites: {
+          cache: new Map([
+            [
+              "participant",
+              {
+                id: "participant",
+                allow: new PermissionsBitField([
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.ReadMessageHistory,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.EmbedLinks,
+                ]),
+              },
+            ],
+          ]),
+        },
+      },
+    ];
+    expect(
+      hasOnlyAllowedAutomaticRoleChannelGrants(
+        "participant",
+        safeChannels,
+        allowed,
+      ),
+    ).toBe(true);
+
+    const hostileChannels = [
+      ...safeChannels,
+      {
+        id: "moderation-log",
+        permissionOverwrites: {
+          cache: new Map([
+            [
+              "participant",
+              {
+                id: "participant",
+                allow: new PermissionsBitField(PermissionFlagsBits.ViewChannel),
+              },
+            ],
+          ]),
+        },
+      },
+    ];
+    expect(
+      hasOnlyAllowedAutomaticRoleChannelGrants(
+        "participant",
+        hostileChannels,
+        allowed,
+      ),
+    ).toBe(false);
   });
 });

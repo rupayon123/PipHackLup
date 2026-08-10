@@ -381,7 +381,7 @@ export async function saveQueueTicketInDb(
   db: PipHackLupDb = getDb(),
 ): Promise<QueueTicket> {
   await ensureGuildInDb(guild, db);
-  await db
+  const [savedTicket] = await db
     .insert(queueTickets)
     .values({
       id: ticket.id,
@@ -401,6 +401,7 @@ export async function saveQueueTicketInDb(
     })
     .onConflictDoUpdate({
       target: queueTickets.id,
+      setWhere: eq(queueTickets.guildId, guild.id),
       set: {
         status: ticket.status,
         teamId: ticket.teamId ?? null,
@@ -412,8 +413,12 @@ export async function saveQueueTicketInDb(
         updatedAt: new Date(ticket.updatedAt),
         closedAt: ticket.closedAt ? new Date(ticket.closedAt) : null,
       },
-    });
-  return ticket;
+    })
+    .returning({ id: queueTickets.id, guildId: queueTickets.guildId });
+  if (!savedTicket) {
+    throw new Error("Queue ticket id is already assigned to another guild.");
+  }
+  return { ...ticket, guildId: guild.id };
 }
 
 /**
@@ -542,8 +547,15 @@ export async function saveModerationCaseInDb(
   db: PipHackLupDb = getDb(),
 ): Promise<ModerationCase> {
   await ensureGuildInDb(guild, db);
-  await buildModerationCaseUpsert(db, guild.id, moderationCase);
-  return moderationCase;
+  const [savedCase] = await buildModerationCaseUpsert(
+    db,
+    guild.id,
+    moderationCase,
+  );
+  if (!savedCase) {
+    throw new Error("Moderation case id is already assigned to another guild.");
+  }
+  return { ...moderationCase, guildId: guild.id };
 }
 
 /** Persist a moderation mutation and its required privileged audit row atomically. */
@@ -556,11 +568,51 @@ export async function saveModerationCaseWithAuditInDb(
   assertAuditTarget(auditInput, guild.id, "case", moderationCase.id);
   await ensureGuildInDb(guild, db);
   const auditEvent = makeAuditEvent(auditInput);
-  await db.batch([
-    buildModerationCaseUpsert(db, guild.id, moderationCase),
-    buildAuditEventInsert(db, auditEvent),
-  ]);
-  return { moderationCase, auditEvent };
+  const metadata = JSON.stringify(auditEvent.metadata);
+  const result = await db.execute<{ caseId: string }>(sql`
+    with saved_case as (
+      insert into ${moderationCases} (
+        "id", "guild_id", "target_user_id", "action", "reason", "reporter_id",
+        "moderator_id", "evidence_message_url", "status", "created_at", "updated_at"
+      ) values (
+        ${moderationCase.id}, ${guild.id}, ${moderationCase.targetUserId},
+        ${moderationCase.action}, ${moderationCase.reason},
+        ${moderationCase.reporterId ?? null}, ${moderationCase.moderatorId ?? null},
+        ${moderationCase.evidenceMessageUrl ?? null}, ${moderationCase.status},
+        ${new Date(moderationCase.createdAt)}, ${new Date(moderationCase.updatedAt)}
+      )
+      on conflict ("id") do update set
+        "action" = excluded."action",
+        "reason" = excluded."reason",
+        "reporter_id" = excluded."reporter_id",
+        "moderator_id" = excluded."moderator_id",
+        "evidence_message_url" = excluded."evidence_message_url",
+        "status" = excluded."status",
+        "updated_at" = excluded."updated_at"
+      where ${moderationCases}."guild_id" = ${guild.id}
+      returning "id"
+    ), inserted_audit as (
+      insert into ${auditEvents} (
+        "id", "guild_id", "actor_id", "action", "target_type", "target_id", "metadata", "created_at"
+      )
+      select
+        ${auditEvent.id}, ${guild.id}, ${auditEvent.actorId}, ${auditEvent.action},
+        ${auditEvent.targetType}, ${auditEvent.targetId}, ${metadata}::jsonb,
+        ${new Date(auditEvent.createdAt)}
+      from saved_case
+      returning "id"
+    )
+    select saved_case."id" as "caseId"
+    from saved_case
+    inner join inserted_audit on true
+  `);
+  if (result.rows.length === 0) {
+    throw new Error("Moderation case id is already assigned to another guild.");
+  }
+  return {
+    moderationCase: { ...moderationCase, guildId: guild.id },
+    auditEvent,
+  };
 }
 
 export async function listModerationCasesFromDb(
@@ -741,6 +793,7 @@ function buildModerationCaseUpsert(
     })
     .onConflictDoUpdate({
       target: moderationCases.id,
+      setWhere: eq(moderationCases.guildId, guildId),
       set: {
         action: moderationCase.action,
         reason: moderationCase.reason,
@@ -750,5 +803,6 @@ function buildModerationCaseUpsert(
         status: moderationCase.status,
         updatedAt: new Date(moderationCase.updatedAt),
       },
-    });
+    })
+    .returning({ id: moderationCases.id, guildId: moderationCases.guildId });
 }

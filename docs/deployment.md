@@ -22,6 +22,8 @@ Environment variables:
 - `DISCORD_TOKEN`
 - optional `DISCORD_INSTALL_PERMISSIONS`
 
+Enable Vercel's automatically exposed system environment variables so the server-side `VERCEL_GIT_COMMIT_SHA` is available to `/api/health`. If that setting is intentionally disabled, set `PIPHACKLUP_RELEASE_SHA` to the exact 40-character commit SHA during deployment. The release verifier rejects `unknown`, shortened, or mismatched identities.
+
 Validate both host contracts locally without making network requests or printing values:
 
 ```bash
@@ -81,6 +83,13 @@ Required bot env:
 - `PORT=8787`
 - `PIPHACKLUP_PUBLIC_URL=https://piphacklup.vercel.app`
 - `PIPHACKLUP_AMBIENT_QA_ENABLED=false`
+- `PIPHACKLUP_RELEASE_SHA=<exact 40-character deployed commit SHA>`
+
+When building the checked-in Dockerfile, stamp the image rather than setting this by hand at runtime:
+
+```bash
+docker build --build-arg PIPHACKLUP_RELEASE_SHA="$(git rev-parse HEAD)" -f apps/bot/Dockerfile -t piphacklup-bot .
+```
 
 Keep ambient Q&A disabled unless you have enabled the Discord Message Content intent and want the bot to answer when mentioned in normal chat messages. Slash-command Q&A through `/ask` works without Message Content intent.
 
@@ -104,7 +113,10 @@ Do not route traffic to the bot until `/health` returns 200. Missing database co
 Before interactive testing, run the read-only deployed-web gate:
 
 ```bash
-npx --yes pnpm@10.25.0 verify:live:release --base-url https://piphacklup.vercel.app --expected-client-id 1512918151313231983
+npx --yes pnpm@10.25.0 verify:live:release \
+  --base-url https://piphacklup.vercel.app \
+  --expected-client-id 1512918151313231983 \
+  --expected-release-sha "$(git rev-parse HEAD)"
 ```
 
 After the bot is installed only in the isolated release server, inject `DISCORD_CLIENT_ID` and `DISCORD_TOKEN` through the shell or hosting secret store and add:

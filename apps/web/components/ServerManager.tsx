@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookOpen,
   Bot,
   CheckCircle2,
   ExternalLink,
@@ -275,10 +276,17 @@ export function ServerManager({
                   <>
                     <Link
                       className="button primary"
-                      href={`/training?guildId=${encodeURIComponent(server.id)}`}
+                      href={`/setup?guildId=${encodeURIComponent(server.id)}`}
                     >
                       <Settings aria-hidden size={16} />
-                      Manage
+                      Set up event
+                    </Link>
+                    <Link
+                      className="button"
+                      href={`/training?guildId=${encodeURIComponent(server.id)}`}
+                    >
+                      <BookOpen aria-hidden size={16} />
+                      Q&amp;A answers
                     </Link>
                     <button
                       className="button danger-ghost"

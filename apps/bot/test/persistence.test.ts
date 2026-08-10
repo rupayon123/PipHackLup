@@ -107,7 +107,6 @@ function createDependencies(
     getQueueTicketFromDb: vi.fn().mockResolvedValue(ticket),
     listQueueTicketsFromDb: vi.fn().mockResolvedValue([ticket]),
     markDiscordInstallationInDb: vi.fn().mockResolvedValue(undefined),
-    pingDatabase: vi.fn().mockResolvedValue(undefined),
     saveGuildConfigInDb: vi
       .fn()
       .mockImplementation(async (saved: EventConfig) => saved),
@@ -158,6 +157,7 @@ function createDependencies(
     upsertMemberProfileInDb: vi
       .fn()
       .mockImplementation(async (_guild, saved: MemberProfile) => saved),
+    verifyDatabaseSchema: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
   return dependencies as BotPersistenceDependencies;
@@ -172,12 +172,12 @@ beforeEach(() => {
 });
 
 describe("guild persistence hydration", () => {
-  it("verifies database connectivity before bot startup", async () => {
+  it("verifies the current database schema before bot startup", async () => {
     const dependencies = createDependencies();
 
     await verifyDatabaseConnection(dependencies);
 
-    expect(dependencies.pingDatabase).toHaveBeenCalledOnce();
+    expect(dependencies.verifyDatabaseSchema).toHaveBeenCalledOnce();
   });
 
   it("atomically replaces one guild cache while preserving another guild", async () => {

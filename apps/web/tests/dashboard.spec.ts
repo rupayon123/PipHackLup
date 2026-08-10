@@ -41,6 +41,19 @@ test("protected routes show an honest sign-in gate without sample records", asyn
   }
 });
 
+test("auth recovery copy explains canceled, expired, and safe sign-out states", async ({
+  page,
+}) => {
+  for (const [status, message] of [
+    ["denied", "Discord sign-in was canceled"],
+    ["expired", "Your sign-in request expired"],
+    ["logout_requires_post", "sign-out only works from the button"],
+  ] as const) {
+    await page.goto(`/dashboard?auth=${status}`);
+    await expect(page.getByText(message, { exact: false })).toBeVisible();
+  }
+});
+
 test("signed-in control-room fixture exposes server lifecycle and filtering", async ({
   page,
 }) => {
@@ -59,6 +72,12 @@ test("signed-in control-room fixture exposes server lifecycle and filtering", as
   await expect(
     installedServer.getByText("Installed", { exact: true }),
   ).toBeVisible();
+  await expect(
+    installedServer.getByRole("link", { name: "Set up event" }),
+  ).toHaveAttribute("href", /\/setup\?guildId=/);
+  await expect(
+    installedServer.getByRole("link", { name: "Q&A answers" }),
+  ).toHaveAttribute("href", /\/training\?guildId=/);
   await expect(
     uninstalledServer.getByText("Not installed", { exact: true }),
   ).toBeVisible();
@@ -155,6 +174,102 @@ test("training fixture uses friendly controls and real empty-safe states", async
   await expect(page.getByText("Where is participant check-in?")).toBeVisible();
   await expect(page.getByText("Staff role ID")).toHaveCount(0);
   await expect(page.getByText("Preview mode")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Save answer" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Add both a participant" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Participant question or topic")).toBeFocused();
+  await expect(
+    page.getByLabel("Participant question or topic"),
+  ).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    page.getByLabel("Answer PipHackLup should give"),
+  ).toHaveAttribute("aria-invalid", "true");
+});
+
+test("setup desk validates inline and saves only the selected server configuration", async ({
+  page,
+}) => {
+  let savedBody: Record<string, unknown> | null = null;
+  await page.route("**/api/discord/guilds/*/options", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        roles: [
+          { id: "1512918151313231986", name: "Participant" },
+          { id: "1512918151313231989", name: "Organizer" },
+        ],
+        channels: [
+          { id: "1512918151313231987", name: "#help-desk" },
+          { id: "1512918151313231990", name: "#announcements" },
+        ],
+      }),
+    });
+  });
+  await page.route("**/api/discord/guilds/*/config", async (route) => {
+    savedBody = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ config: savedBody, warning: null }),
+    });
+  });
+
+  await page.goto("/dev-fixtures/setup");
+
+  await expect(
+    page.getByRole("heading", { name: "Shape this server's workspace" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Live choices loaded from North Star Hackathon"),
+  ).toBeVisible();
+  await expect(page.getByLabel("Participant role")).toHaveValue(
+    "1512918151313231986",
+  );
+
+  await page.getByLabel("Event name").fill("North Star Build Weekend");
+  await page.getByLabel("Minimum").fill("8");
+  await page.getByLabel("Maximum").fill("4");
+  await page.getByRole("button", { name: "Save event settings" }).click();
+
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Check the highlighted" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Minimum")).toBeFocused();
+  await expect(page.getByLabel("Minimum")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  expect(savedBody).toBeNull();
+
+  await page.getByLabel("Minimum").fill("2");
+  await page.getByLabel("Maximum").fill("6");
+  await page.getByLabel("Organizer role").selectOption("1512918151313231989");
+  await page.getByRole("button", { name: "Save event settings" }).click();
+
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Settings saved for North Star Hackathon" }),
+  ).toBeVisible();
+  expect(savedBody).toMatchObject({
+    eventName: "North Star Build Weekend",
+    onboardingMode: "gated",
+    teamSizeMin: 2,
+    teamSizeMax: 6,
+    roles: {
+      participant: "1512918151313231986",
+      organizer: "1512918151313231989",
+    },
+    channels: { helpDesk: "1512918151313231987" },
+  });
+  expect(savedBody).not.toHaveProperty("guildId");
+  expect(savedBody).not.toHaveProperty("resources");
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
 test("mobile navigation keeps readable labels and a secondary menu", async ({
