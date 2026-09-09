@@ -39,6 +39,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build shared core for database integration tests
+        run: pnpm --filter @piphacklup/core build
       - name: Apply migrations to ephemeral PostgreSQL
         run: pnpm --filter @piphacklup/db db:migrate
         env:
