@@ -579,7 +579,8 @@ export async function saveModerationCaseWithAuditInDb(
         ${moderationCase.action}, ${moderationCase.reason},
         ${moderationCase.reporterId ?? null}, ${moderationCase.moderatorId ?? null},
         ${moderationCase.evidenceMessageUrl ?? null}, ${moderationCase.status},
-        ${new Date(moderationCase.createdAt)}, ${new Date(moderationCase.updatedAt)}
+        ${sql.param(new Date(moderationCase.createdAt), moderationCases.createdAt)},
+        ${sql.param(new Date(moderationCase.updatedAt), moderationCases.updatedAt)}
       )
       on conflict ("id") do update set
         "action" = excluded."action",
@@ -598,7 +599,7 @@ export async function saveModerationCaseWithAuditInDb(
       select
         ${auditEvent.id}, ${guild.id}, ${auditEvent.actorId}, ${auditEvent.action},
         ${auditEvent.targetType}, ${auditEvent.targetId}, ${metadata}::jsonb,
-        ${new Date(auditEvent.createdAt)}
+        ${sql.param(new Date(auditEvent.createdAt), auditEvents.createdAt)}
       from saved_case
       returning "id"
     )

@@ -881,6 +881,15 @@ describe("moderation durability", () => {
     expect(query.params).toEqual(
       expect.arrayContaining(["guild-a", "case-a", "moderation.warn"]),
     );
+    expect(query.params.some((parameter) => parameter instanceof Date)).toBe(
+      false,
+    );
+    expect(query.params).toEqual(
+      expect.arrayContaining([
+        moderationCase.createdAt,
+        moderationCase.updatedAt,
+      ]),
+    );
   });
 
   it("rejects a moderation id owned by another guild and writes no audit", async () => {

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -27,7 +27,16 @@ integrationDescribe("guild isolation on PostgreSQL", () => {
 
   beforeAll(async () => {
     client = postgres(integrationDatabaseUrl!, { max: 1 });
-    db = drizzle(client, { schema }) as unknown as PipHackLupDb;
+    const sqlDb = drizzle(client, { schema });
+    // Production uses Neon HTTP's { rows } result; postgres-js returns rows directly.
+    db = new Proxy(sqlDb, {
+      get(target, property, receiver) {
+        if (property === "execute") {
+          return async (query: SQL) => ({ rows: await target.execute(query) });
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as unknown as PipHackLupDb;
     await clearRows();
   });
 
