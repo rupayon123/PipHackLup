@@ -7,7 +7,8 @@ import {
   type KnowledgeAssistantSettings,
 } from "@piphacklup/core";
 import { getDb, type PipHackLupDb } from "./client.js";
-import { guilds, knowledgeEntries, knowledgeSettings } from "./schema.js";
+import { ensureGuildInDb } from "./operations.js";
+import { knowledgeEntries, knowledgeSettings } from "./schema.js";
 
 export interface KnowledgeGuildContext {
   id: string;
@@ -39,23 +40,7 @@ export async function ensureKnowledgeGuild(
   guild: KnowledgeGuildContext,
   db: PipHackLupDb = getDb(),
 ): Promise<void> {
-  const now = new Date();
-  await db
-    .insert(guilds)
-    .values({
-      id: guild.id,
-      name: guild.name,
-      eventName: guild.eventName ?? guild.name,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: guilds.id,
-      set: {
-        name: guild.name,
-        eventName: guild.eventName ?? guild.name,
-        updatedAt: now,
-      },
-    });
+  await ensureGuildInDb(guild, db);
 }
 
 export async function createKnowledgeEntryInDb(
@@ -63,20 +48,34 @@ export async function createKnowledgeEntryInDb(
   guild: KnowledgeGuildContext,
   db: PipHackLupDb = getDb(),
 ): Promise<HackathonKnowledgeEntry> {
-  await ensureKnowledgeGuild(guild, db);
-  const entry = createKnowledgeEntry(input);
-  await db.insert(knowledgeEntries).values({
-    id: entry.id,
-    guildId: entry.guildId,
-    title: entry.title,
-    answer: entry.answer,
-    tags: entry.tags,
-    escalationTarget: entry.escalationTarget,
-    createdBy: entry.createdBy,
-    createdAt: new Date(entry.createdAt),
-    updatedAt: new Date(entry.updatedAt),
-  });
+  const entries = await createKnowledgeEntriesInDb([input], guild, db);
+  const entry = entries[0];
+  if (!entry) throw new Error("Knowledge entry creation returned no entry.");
   return entry;
+}
+
+export async function createKnowledgeEntriesInDb(
+  inputs: CreateKnowledgeEntryInput[],
+  guild: KnowledgeGuildContext,
+  db: PipHackLupDb = getDb(),
+): Promise<HackathonKnowledgeEntry[]> {
+  if (!inputs.length) return [];
+  const entries = inputs.map((input) => createKnowledgeEntry(input));
+  await ensureKnowledgeGuild(guild, db);
+  await db.insert(knowledgeEntries).values(
+    entries.map((entry) => ({
+      id: entry.id,
+      guildId: entry.guildId,
+      title: entry.title,
+      answer: entry.answer,
+      tags: entry.tags,
+      escalationTarget: entry.escalationTarget,
+      createdBy: entry.createdBy,
+      createdAt: new Date(entry.createdAt),
+      updatedAt: new Date(entry.updatedAt),
+    })),
+  );
+  return entries;
 }
 
 export async function listKnowledgeEntriesFromDb(
@@ -117,13 +116,7 @@ export async function getKnowledgeSettingsFromDb(
   });
 
   if (!row) return { ...defaultKnowledgeSettings };
-  return {
-    minConfidence: row.minConfidence,
-    publicAnswers: row.publicAnswers,
-    ...(row.staffRoleId ? { staffRoleId: row.staffRoleId } : {}),
-    ...(row.mentorRoleId ? { mentorRoleId: row.mentorRoleId } : {}),
-    ...(row.helpChannelId ? { helpChannelId: row.helpChannelId } : {}),
-  };
+  return mapKnowledgeSettings(row);
 }
 
 export async function updateKnowledgeSettingsInDb(
@@ -132,9 +125,8 @@ export async function updateKnowledgeSettingsInDb(
   db: PipHackLupDb = getDb(),
 ): Promise<KnowledgeAssistantSettings> {
   await ensureKnowledgeGuild(guild, db);
-  const current = await getKnowledgeSettingsFromDb(guild.id, db);
   const settings: KnowledgeAssistantSettings = {
-    ...current,
+    ...defaultKnowledgeSettings,
     ...(patch.minConfidence !== undefined
       ? { minConfidence: patch.minConfidence }
       : {}),
@@ -145,7 +137,8 @@ export async function updateKnowledgeSettingsInDb(
   applyOptionalSetting(settings, patch, "staffRoleId");
   applyOptionalSetting(settings, patch, "mentorRoleId");
   applyOptionalSetting(settings, patch, "helpChannelId");
-  await db
+  const updatedAt = new Date();
+  const rows = await db
     .insert(knowledgeSettings)
     .values({
       guildId: guild.id,
@@ -154,20 +147,35 @@ export async function updateKnowledgeSettingsInDb(
       staffRoleId: settings.staffRoleId ?? null,
       mentorRoleId: settings.mentorRoleId ?? null,
       helpChannelId: settings.helpChannelId ?? null,
-      updatedAt: new Date(),
+      updatedAt,
     })
     .onConflictDoUpdate({
       target: knowledgeSettings.guildId,
       set: {
-        minConfidence: settings.minConfidence,
-        publicAnswers: settings.publicAnswers,
-        staffRoleId: settings.staffRoleId ?? null,
-        mentorRoleId: settings.mentorRoleId ?? null,
-        helpChannelId: settings.helpChannelId ?? null,
-        updatedAt: new Date(),
+        ...(patch.minConfidence !== undefined
+          ? { minConfidence: patch.minConfidence }
+          : {}),
+        ...(patch.publicAnswers !== undefined
+          ? { publicAnswers: patch.publicAnswers }
+          : {}),
+        ...("staffRoleId" in patch
+          ? { staffRoleId: patch.staffRoleId ?? null }
+          : {}),
+        ...("mentorRoleId" in patch
+          ? { mentorRoleId: patch.mentorRoleId ?? null }
+          : {}),
+        ...("helpChannelId" in patch
+          ? { helpChannelId: patch.helpChannelId ?? null }
+          : {}),
+        updatedAt,
       },
-    });
-  return settings;
+    })
+    .returning();
+  const row = rows[0];
+  if (!row) {
+    throw new Error("Knowledge settings update returned no row.");
+  }
+  return mapKnowledgeSettings(row);
 }
 
 function mapKnowledgeEntry(
@@ -183,6 +191,18 @@ function mapKnowledgeEntry(
     createdBy: row.createdBy,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function mapKnowledgeSettings(
+  row: typeof knowledgeSettings.$inferSelect,
+): KnowledgeAssistantSettings {
+  return {
+    minConfidence: row.minConfidence,
+    publicAnswers: row.publicAnswers,
+    ...(row.staffRoleId ? { staffRoleId: row.staffRoleId } : {}),
+    ...(row.mentorRoleId ? { mentorRoleId: row.mentorRoleId } : {}),
+    ...(row.helpChannelId ? { helpChannelId: row.helpChannelId } : {}),
   };
 }
 

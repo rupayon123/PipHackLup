@@ -31,4 +31,4 @@ PipHackLup's public code should keep RBAC, rate limiting, prompt-injection filte
 
 ## Supported Versions
 
-PipHackLup is currently public alpha. Security fixes should target the `main` branch.
+The current production deployment tracks the `main` branch. Security fixes should target `main`; older deployments and unmaintained forks are not supported.

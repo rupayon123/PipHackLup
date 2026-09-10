@@ -2,7 +2,9 @@ export type CsvRow = Record<string, string>;
 
 export function toCsv(rows: CsvRow[], columns = inferColumns(rows)): string {
   const header = columns.map(escapeCsvCell).join(",");
-  const body = rows.map((row) => columns.map((column) => escapeCsvCell(row[column] ?? "")).join(","));
+  const body = rows.map((row) =>
+    columns.map((column) => escapeCsvCell(row[column] ?? "")).join(","),
+  );
   return [header, ...body].join("\n");
 }
 
@@ -12,7 +14,9 @@ export function fromCsv(csv: string): CsvRow[] {
   if (!header) return [];
 
   return rows.map((row) =>
-    Object.fromEntries(header.map((column, index) => [column, row[index] ?? ""]))
+    Object.fromEntries(
+      header.map((column, index) => [column, row[index] ?? ""]),
+    ),
   );
 }
 
@@ -21,8 +25,9 @@ function inferColumns(rows: CsvRow[]): string[] {
 }
 
 function escapeCsvCell(value: string): string {
-  if (!/[",\n\r]/.test(value)) return value;
-  return `"${value.replaceAll('"', '""')}"`;
+  const safeValue = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  if (!/[",\n\r]/.test(safeValue)) return safeValue;
+  return `"${safeValue.replaceAll('"', '""')}"`;
 }
 
 function parseCsvRecords(input: string): string[][] {

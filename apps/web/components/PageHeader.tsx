@@ -2,7 +2,7 @@ export function PageHeader({
   eyebrow,
   title,
   subtitle,
-  actions
+  actions,
 }: Readonly<{
   eyebrow: string;
   title: string;

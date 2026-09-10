@@ -132,9 +132,7 @@ export function answerHackathonQuestion(
 ): KnowledgeAnswerResult {
   const mergedSettings = { ...defaultKnowledgeSettings, ...settings };
   const cleanQuestion = question.trim();
-  const safetyFindings = analyzePromptInjectionRisk(cleanQuestion).filter(
-    (finding) => finding.severity === "high",
-  );
+  const safetyFindings = analyzePromptInjectionRisk(cleanQuestion);
 
   if (safetyFindings.length > 0) {
     return {

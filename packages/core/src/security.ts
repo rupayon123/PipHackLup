@@ -90,7 +90,7 @@ export function assertKnowledgeTrainingIsSafe(input: {
 }): void {
   const findings = analyzePromptInjectionRisk(
     `${input.title.trim()}\n${input.answer.trim()}`,
-  ).filter((finding) => finding.severity === "high");
+  );
 
   if (findings.length > 0) {
     throw new KnowledgeSafetyError(findings);

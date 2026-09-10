@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "Discord moderation bot",
     "Discord onboarding bot",
     "hackathon organizer dashboard",
-    "hackathon AI assistant",
+    "hackathon Q&A assistant",
     "hackathon FAQ bot",
   ],
   authors: [{ name: "Rupayon Haldar", url: "https://github.com/rupayon123" }],
@@ -77,16 +77,14 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+var theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+  ? "dark"
+  : "light";
 try {
-  var key = "piphacklup-dashboard-theme";
-  var saved = window.localStorage.getItem(key);
-  var theme = saved === "dark" || saved === "light"
-    ? saved
-    : window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  document.documentElement.dataset.dashboardTheme = theme;
+  var saved = window.localStorage.getItem("piphacklup-dashboard-theme");
+  if (saved === "dark" || saved === "light") theme = saved;
 } catch (_) {}
+document.documentElement.dataset.dashboardTheme = theme;
 `,
           }}
         />

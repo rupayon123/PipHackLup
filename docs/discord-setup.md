@@ -5,7 +5,7 @@ Public app name: `PipHackLup`
 Public install link:
 
 ```text
-https://discord.com/oauth2/authorize?client_id=1512918151313231983&scope=bot+applications.commands&permissions=1117094267958
+https://discord.com/oauth2/authorize?client_id=1512918151313231983&scope=bot+applications.commands&permissions=1099914365968
 ```
 
 ## 1. Create the app
@@ -42,39 +42,51 @@ Recommended bot permissions:
 - View Channels
 - Send Messages
 - Embed Links
-- Attach Files
 - Read Message History
 - Manage Roles
 - Manage Nicknames
 - Manage Channels
-- Manage Threads
 - Moderate Members
-- Manage Guild
-- Kick Members and Ban Members only if you want live kick/ban actions
+
+PipHackLup does not request Kick Members or Ban Members. Its moderation action is a Discord timeout, protected by Moderate Members and staff RBAC.
 
 ## 4. Register commands
 
 For a test server, set `DISCORD_TEST_GUILD_ID` so commands register instantly:
 
 ```bash
-pnpm --filter @piphacklup/bot deploy:commands
+npx --yes pnpm@10.25.0 --filter @piphacklup/bot deploy:commands
 ```
+
+After the isolated release test passes, unset `DISCORD_TEST_GUILD_ID` and use the explicit global-publication flag:
+
+```bash
+npx --yes pnpm@10.25.0 --filter @piphacklup/bot deploy:commands --global
+```
+
+Without either an isolated guild ID or `--global`, the deployment command stops without changing Discord. Do not register global commands from multiple deploy jobs at the same time.
 
 Then run the bot:
 
 ```bash
-pnpm dev:bot
+npx --yes pnpm@10.25.0 dev:bot
 ```
 
-## 5. Test server demo
+## 5. Isolated release test
 
-1. Invite the bot to a new test server.
-2. Run `/setup`.
-3. Run `/train settings` to set the staff role, mentor role, help channel, and confidence threshold.
-4. Run `/train add` or `/train import` with schedule, venue, prizes, judging, team, and rules details.
-5. Open `https://piphacklup.vercel.app/training`, connect Discord, pick the test server, add a web training entry, and preview an answer.
-6. Ask a participant question with `/ask`.
-7. Run `/onboard checklist`.
-8. Create a profile with `/team profile`.
-9. Create help tickets with `/queue open`.
-10. Create a report with `/mod report`.
+Use a new server that contains no real participant data and no unrelated bots.
+
+1. Sign in at `https://piphacklup.vercel.app/dashboard`; confirm only servers you own or can manage are listed.
+2. Choose the isolated server and use **Add to this server**. Confirm Discord locks the install to the selected server and the dashboard recognizes it after returning.
+3. Run `/setup`; verify the expected roles, channels, and panels are created once and a second run safely reuses them.
+4. Run `/train settings`, `/train add`, and `/train import`; confirm the website shows the same server-specific entries and settings.
+5. Ask a known question with `/ask`, then ask an uncertain, safety-sensitive, and prompt-injection-style question. Known content should answer; suspicious or low-confidence content should escalate to staff.
+6. Run `/onboard checklist` as a participant. In gated mode, set a nickname, click **Acknowledge rules**, verify the participant role is granted and newcomer role removed, and confirm gated channels become visible.
+7. Create profiles, recruiting teams, and matches with `/team`; verify the dashboard reflects only this server.
+8. Open, claim, escalate, and close each `/queue` type with participant and staff accounts. Confirm unauthorized members cannot perform staff transitions.
+9. Create and review `/mod` cases; confirm staff permission checks, audit events, and safe error messages.
+10. Export CSV and verify spreadsheet-looking content cannot become a formula.
+11. Restart the bot and confirm setup, profiles, teams, tickets, cases, Q&A, and installation state survive.
+12. Remove the bot from the dashboard using the exact server-name confirmation. Confirm another managed server is unchanged, then reinstall and verify retained event data is available.
+
+Record pass/fail evidence for every step. Do not use a production community server for release testing.

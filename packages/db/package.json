@@ -11,18 +11,20 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "lint": "pnpm typecheck",
-    "test": "vitest run --passWithNoTests",
-    "typecheck": "pnpm --filter @piphacklup/core build && tsc -p tsconfig.json --noEmit"
+    "pretest": "pnpm --filter @piphacklup/core build",
+    "test": "vitest run",
+    "typecheck": "pnpm --filter @piphacklup/core build && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit"
   },
   "dependencies": {
-    "@piphacklup/core": "workspace:*",
     "@neondatabase/serverless": "^1.0.2",
+    "@piphacklup/core": "workspace:*",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@types/node": "^25.0.1",
     "drizzle-kit": "^0.31.8",
+    "postgres": "^3.4.9",
     "typescript": "^6.0.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.11"
   }
 }

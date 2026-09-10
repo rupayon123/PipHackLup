@@ -1,50 +1,44 @@
-import {
-  createModerationCase,
-  createKnowledgeEntry,
-  createQueueTicket,
-  createTeam,
-  type EventConfig,
-  type HackathonKnowledgeEntry,
-  type KnowledgeAssistantSettings,
-  type MemberProfile,
-  type ModerationCase,
-  type QueueTicket,
-  type TeamProfile,
-  defaultKnowledgeSettings,
+import type {
+  EventConfig,
+  MemberProfile,
+  ModerationCase,
+  QueueTicket,
+  TeamProfile,
 } from "@piphacklup/core";
 
-export interface DemoStore {
+export interface BotMemoryCache {
   configs: Map<string, EventConfig>;
   members: Map<string, MemberProfile>;
   teams: Map<string, TeamProfile>;
   tickets: Map<string, QueueTicket>;
   cases: Map<string, ModerationCase>;
-  knowledge: Map<string, HackathonKnowledgeEntry>;
-  knowledgeSettings: Map<string, KnowledgeAssistantSettings>;
 }
 
-export const store: DemoStore = {
+export interface GuildOperationalSnapshot {
+  config: EventConfig | null;
+  profiles: MemberProfile[];
+  teams: TeamProfile[];
+  tickets: QueueTicket[];
+  moderationCases: ModerationCase[];
+}
+
+export const store: BotMemoryCache = {
   configs: new Map(),
   members: new Map(),
   teams: new Map(),
   tickets: new Map(),
   cases: new Map(),
-  knowledge: new Map(),
-  knowledgeSettings: new Map(),
 };
 
 export function profileKey(guildId: string, userId: string): string {
   return `${guildId}:${userId}`;
 }
 
-export function ensureConfig(
+export function buildDefaultConfig(
   guildId: string,
   eventName = "Hackathon",
 ): EventConfig {
-  const existing = store.configs.get(guildId);
-  if (existing) return existing;
-
-  const config: EventConfig = {
+  return {
     guildId,
     eventName,
     onboardingMode: "guided",
@@ -54,101 +48,78 @@ export function ensureConfig(
     roles: {},
     channels: {},
   };
-  store.configs.set(guildId, config);
+}
+
+export function cacheConfig(config: EventConfig): EventConfig {
+  store.configs.set(config.guildId, config);
   return config;
 }
 
-export function saveProfile(profile: MemberProfile): MemberProfile {
-  store.members.set(
-    profileKey(profile.userId.split(":")[0] ?? "", profile.userId),
-    profile,
-  );
+export function cacheProfile(
+  guildId: string,
+  profile: MemberProfile,
+): MemberProfile {
+  store.members.set(profileKey(guildId, profile.userId), profile);
   return profile;
 }
 
-export function upsertProfile(
-  guildId: string,
-  profile: Omit<MemberProfile, "updatedAt">,
-): MemberProfile {
-  const saved: MemberProfile = {
-    ...profile,
-    updatedAt: new Date().toISOString(),
-  };
-  store.members.set(profileKey(guildId, profile.userId), saved);
-  return saved;
-}
-
-export function getProfiles(guildId: string): MemberProfile[] {
-  return [...store.members.entries()]
-    .filter(([key]) => key.startsWith(`${guildId}:`))
-    .map(([, profile]) => profile);
-}
-
-export function createStoredTicket(
-  input: Parameters<typeof createQueueTicket>[0],
-): QueueTicket {
-  const ticket = createQueueTicket(input);
-  store.tickets.set(ticket.id, ticket);
-  return ticket;
-}
-
-export function createStoredTeam(
-  input: Parameters<typeof createTeam>[0],
-): TeamProfile {
-  const team = createTeam(input);
+export function cacheTeam(team: TeamProfile): TeamProfile {
   store.teams.set(team.id, team);
   return team;
 }
 
-export function createStoredCase(
-  input: Parameters<typeof createModerationCase>[0],
+export function cacheTicket(ticket: QueueTicket): QueueTicket {
+  store.tickets.set(ticket.id, ticket);
+  return ticket;
+}
+
+export function cacheModerationCase(
+  moderationCase: ModerationCase,
 ): ModerationCase {
-  const moderationCase = createModerationCase(input);
   store.cases.set(moderationCase.id, moderationCase);
   return moderationCase;
 }
 
-export function ensureKnowledgeSettings(
+export function replaceGuildOperationalState(
   guildId: string,
-): KnowledgeAssistantSettings {
-  const existing = store.knowledgeSettings.get(guildId);
-  if (existing) return existing;
-
-  const settings = { ...defaultKnowledgeSettings };
-  store.knowledgeSettings.set(guildId, settings);
-  return settings;
+  snapshot: GuildOperationalSnapshot,
+): void {
+  evictGuildOperationalState(guildId);
+  if (snapshot.config) cacheConfig(snapshot.config);
+  for (const profile of snapshot.profiles) cacheProfile(guildId, profile);
+  for (const team of snapshot.teams) cacheTeam(team);
+  for (const ticket of snapshot.tickets) cacheTicket(ticket);
+  for (const moderationCase of snapshot.moderationCases) {
+    cacheModerationCase(moderationCase);
+  }
 }
 
-export function updateKnowledgeSettings(
+export function replaceGuildTickets(
   guildId: string,
-  patch: Partial<KnowledgeAssistantSettings>,
-): KnowledgeAssistantSettings {
-  const settings = { ...ensureKnowledgeSettings(guildId), ...patch };
-  store.knowledgeSettings.set(guildId, settings);
-  return settings;
+  tickets: readonly QueueTicket[],
+): void {
+  deleteMapValues(store.tickets, (ticket) => ticket.guildId === guildId);
+  for (const ticket of tickets) cacheTicket(ticket);
 }
 
-export function createStoredKnowledgeEntry(
-  input: Parameters<typeof createKnowledgeEntry>[0],
-): HackathonKnowledgeEntry {
-  const entry = createKnowledgeEntry(input);
-  store.knowledge.set(entry.id, entry);
-  return entry;
-}
-
-export function getKnowledgeEntries(
-  guildId: string,
-): HackathonKnowledgeEntry[] {
-  return [...store.knowledge.values()].filter(
-    (entry) => entry.guildId === guildId,
+export function evictGuildOperationalState(guildId: string): void {
+  store.configs.delete(guildId);
+  for (const key of store.members.keys()) {
+    if (key.startsWith(`${guildId}:`)) store.members.delete(key);
+  }
+  deleteMapValues(store.teams, (team) => team.guildId === guildId);
+  deleteMapValues(store.tickets, (ticket) => ticket.guildId === guildId);
+  deleteMapValues(
+    store.cases,
+    (moderationCase) => moderationCase.guildId === guildId,
   );
 }
 
-export function deleteKnowledgeEntry(
-  guildId: string,
-  entryId: string,
-): boolean {
-  const entry = store.knowledge.get(entryId);
-  if (!entry || entry.guildId !== guildId) return false;
-  return store.knowledge.delete(entryId);
+function deleteMapValues<T>(
+  values: Map<string, T>,
+  predicate: (value: T) => boolean,
+): void {
+  for (const [key, value] of values) {
+    if (predicate(value)) values.delete(key);
+  }
 }

@@ -1,96 +1,67 @@
-"use client";
-
 import {
-  BarChart3,
-  ClipboardList,
-  Download,
-  FileText,
-  MessageCircleQuestion,
-  Shield,
-  Users,
-  Wrench,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+  isDiscordAuthConfigured,
+  readDiscordSession,
+  type DiscordSession,
+} from "@/lib/discord-auth";
+import { Suspense } from "react";
+import { AppShellClient } from "./AppShellClient";
 
-type DashboardTheme = "light" | "dark";
+interface AppShellProps {
+  children: React.ReactNode;
+  session?: DiscordSession | null;
+  authRequired?: boolean;
+  sessionUnavailable?: boolean;
+}
 
-const themeStorageKey = "piphacklup-dashboard-theme";
-
-const navItems = [
-  { href: "/dashboard", label: "Overview", icon: BarChart3 },
-  { href: "/setup", label: "Setup", icon: Wrench },
-  { href: "/training", label: "Q&A Training", icon: MessageCircleQuestion },
-  { href: "/queues", label: "Queues", icon: ClipboardList },
-  { href: "/teams", label: "Teams", icon: Users },
-  { href: "/moderation", label: "Moderation", icon: Shield },
-  { href: "/privacy", label: "Privacy", icon: FileText },
-];
-
-export function AppShell({
+export async function AppShell({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const [theme, setTheme] = useState<DashboardTheme>("light");
-  const pathname = usePathname();
+  session: providedSession,
+  authRequired = true,
+  sessionUnavailable: providedSessionUnavailable = false,
+}: Readonly<AppShellProps>) {
+  let session = providedSession ?? null;
+  let sessionUnavailable = providedSessionUnavailable;
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem(themeStorageKey);
-    const initial =
-      saved === "dark" || saved === "light"
-        ? saved
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-    setTheme(initial);
-    document.documentElement.dataset.dashboardTheme = initial;
-  }, []);
-
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    window.localStorage.setItem(themeStorageKey, next);
-    document.documentElement.dataset.dashboardTheme = next;
+  if (providedSession === undefined && isDiscordAuthConfigured()) {
+    try {
+      session = await readDiscordSession();
+    } catch {
+      sessionUnavailable = true;
+      console.error("PipHackLup could not read the organizer session.");
+    }
   }
 
   return (
-    <div className="shell" data-theme={theme}>
+    <Suspense fallback={<AppShellFallback />}>
+      <AppShellClient
+        authReady={isDiscordAuthConfigured()}
+        authRequired={authRequired}
+        session={session}
+        sessionUnavailable={sessionUnavailable}
+      >
+        {children}
+      </AppShellClient>
+    </Suspense>
+  );
+}
+
+function AppShellFallback() {
+  return (
+    <div className="shell shell-loading" aria-busy="true" aria-live="polite">
       <aside className="sidebar">
         <div className="sidebar-head">
-          <Link className="brand" href="/dashboard">
-            <span className="brand-mark">P</span>
+          <span className="brand">
+            <span className="brand-mark" aria-hidden>
+              P
+            </span>
             <span>PipHackLup</span>
-          </Link>
-          <ThemeToggle onToggle={toggleTheme} theme={theme} />
+          </span>
         </div>
-        <nav className="nav" aria-label="Main navigation">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-            return (
-              <Link
-                aria-current={active ? "page" : undefined}
-                className={active ? "active" : undefined}
-                key={item.href}
-                href={item.href}
-              >
-                <Icon aria-hidden size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-          <a href="/api/export" title="Download CSV export">
-            <Download aria-hidden size={18} />
-            <span>Export</span>
-          </a>
-        </nav>
       </aside>
-      <main className="main">
-        <div className="page-surface" key={pathname}>
-          {children}
+      <main className="main" id="main-content">
+        <div className="page-surface">
+          <p className="eyebrow">Organizer control room</p>
+          <h1>Opening your server workspace…</h1>
         </div>
       </main>
     </div>

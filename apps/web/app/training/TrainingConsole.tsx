@@ -1,259 +1,285 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Save, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   answerHackathonQuestion,
-  createKnowledgeEntry,
-  defaultKnowledgeSettings,
-  parseKnowledgeImportText,
   type HackathonKnowledgeEntry,
   type KnowledgeAssistantSettings,
   type KnowledgeEscalationTarget,
 } from "@piphacklup/core";
-import type { DiscordSession, ManagedDiscordGuild } from "@/lib/discord-auth";
+import type { ManagedDiscordGuild } from "@/lib/discord-auth";
 
 interface TrainingConsoleProps {
-  session: DiscordSession | null;
-  databaseReady: boolean;
-  installUrl: string;
+  guild: ManagedDiscordGuild;
+  initialEntries: HackathonKnowledgeEntry[];
+  initialSettings: KnowledgeAssistantSettings;
+  botInstallation: boolean | null;
 }
 
-const previewGuild: ManagedDiscordGuild = {
-  id: "preview-guild",
-  name: "Preview Hackathon Server",
-  isOwner: true,
-  permissions: "32",
-  canManage: true,
-};
+interface DiscordOption {
+  id: string;
+  name: string;
+}
 
-const previewEntries: HackathonKnowledgeEntry[] = [
-  createKnowledgeEntry({
-    guildId: previewGuild.id,
-    title: "Check-in location",
-    answer:
-      "Check-in is at the main registration desk. Staff can update this from the website trainer or `/train add`.",
-    tags: ["check-in", "registration", "badge"],
-    createdBy: "preview",
-  }),
-  createKnowledgeEntry({
-    guildId: previewGuild.id,
-    title: "Submission deadline",
-    answer:
-      "Project submissions close at 10:00 AM on demo day. Ask staff to change this for the real event.",
-    tags: ["deadline", "submit", "demo"],
-    escalationTarget: "staff",
-    createdBy: "preview",
-  }),
-];
+interface DiscordGuildOptions {
+  roles: DiscordOption[];
+  channels: DiscordOption[];
+}
+
+type BusyAction = "add" | "import" | "settings" | `delete:${string}`;
+type Notice = { kind: "status" | "error"; message: string };
+type DiscordOptionsStatus = "not-needed" | "loading" | "ready" | "error";
 
 export function TrainingConsole({
-  session,
-  databaseReady,
-  installUrl,
-}: TrainingConsoleProps) {
-  const guilds = session?.guilds.length ? session.guilds : [previewGuild];
-  const [selectedGuildId, setSelectedGuildId] = useState(
-    guilds[0]?.id ?? previewGuild.id,
-  );
-  const selectedGuild =
-    guilds.find((guild) => guild.id === selectedGuildId) ??
-    guilds[0] ??
-    previewGuild;
-  const liveMode = Boolean(session && databaseReady);
+  guild,
+  initialEntries,
+  initialSettings,
+  botInstallation,
+}: Readonly<TrainingConsoleProps>) {
   const [entries, setEntries] =
-    useState<HackathonKnowledgeEntry[]>(previewEntries);
-  const [settings, setSettings] = useState<KnowledgeAssistantSettings>({
-    ...defaultKnowledgeSettings,
-  });
+    useState<HackathonKnowledgeEntry[]>(initialEntries);
+  const [settings, setSettings] =
+    useState<KnowledgeAssistantSettings>(initialSettings);
+  const [discordOptions, setDiscordOptions] =
+    useState<DiscordGuildOptions | null>(null);
+  const [discordOptionsStatus, setDiscordOptionsStatus] =
+    useState<DiscordOptionsStatus>(
+      botInstallation === true ? "loading" : "not-needed",
+    );
   const [title, setTitle] = useState("");
   const [answer, setAnswer] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const answerRef = useRef<HTMLTextAreaElement>(null);
+  const [entryErrors, setEntryErrors] = useState<{
+    title?: string;
+    answer?: string;
+  }>({});
   const [tags, setTags] = useState("");
   const [escalationTarget, setEscalationTarget] =
     useState<KnowledgeEscalationTarget>("none");
   const [importText, setImportText] = useState("");
   const [question, setQuestion] = useState("Where do I check in?");
-  const [status, setStatus] = useState(
-    liveMode
-      ? "Connected to Discord and database."
-      : "Preview mode: connect Discord and DATABASE_URL for live training.",
-  );
+  const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
+  const [removeConfirmationId, setRemoveConfirmationId] = useState<
+    string | null
+  >(null);
+  const deleteConfirmRef = useRef<HTMLButtonElement>(null);
+  const returnDeleteFocusIdRef = useRef<string | null>(null);
+  const [notice, setNotice] = useState<Notice>({
+    kind: "status",
+    message: `Ready to edit answers for ${guild.name}.`,
+  });
 
   useEffect(() => {
-    setSelectedGuildId(guilds[0]?.id ?? previewGuild.id);
-  }, [session?.user.id]);
-
-  useEffect(() => {
-    if (!liveMode) {
-      setEntries(
-        previewEntries.map((entry) => ({
-          ...entry,
-          guildId: selectedGuild.id,
-        })),
-      );
-      setSettings({ ...defaultKnowledgeSettings });
+    if (botInstallation !== true) {
+      setDiscordOptions(null);
+      setDiscordOptionsStatus("not-needed");
       return;
     }
 
-    let canceled = false;
-    async function loadTraining() {
-      setStatus("Loading server training...");
-      const query = `guildId=${encodeURIComponent(selectedGuild.id)}`;
-      const [entriesResponse, settingsResponse] = await Promise.all([
-        fetch(`/api/training/entries?${query}`),
-        fetch(`/api/training/settings?${query}`),
-      ]);
-      if (canceled) return;
-      if (!entriesResponse.ok || !settingsResponse.ok) {
-        setStatus("Could not load live training for this server.");
-        return;
+    const controller = new AbortController();
+    setDiscordOptions(null);
+    setDiscordOptionsStatus("loading");
+    async function loadDiscordOptions() {
+      try {
+        const response = await fetch(
+          `/api/discord/guilds/${encodeURIComponent(guild.id)}/options`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("options_unavailable");
+        const body = (await response.json()) as DiscordGuildOptions;
+        if (!controller.signal.aborted) {
+          setDiscordOptions(body);
+          setDiscordOptionsStatus("ready");
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        console.error("PipHackLup could not load Discord roles and channels.");
+        setDiscordOptions(null);
+        setDiscordOptionsStatus("error");
+        setNotice({
+          kind: "error",
+          message:
+            "Discord roles and channels could not be loaded. Your saved answers are still available.",
+        });
       }
-      const entriesJson = (await entriesResponse.json()) as {
-        entries: HackathonKnowledgeEntry[];
-      };
-      const settingsJson = (await settingsResponse.json()) as {
-        settings: KnowledgeAssistantSettings;
-      };
-      setEntries(entriesJson.entries);
-      setSettings(settingsJson.settings);
-      setStatus(`Live training loaded for ${selectedGuild.name}.`);
+    }
+    void loadDiscordOptions();
+    return () => controller.abort();
+  }, [botInstallation, guild.id]);
+
+  useEffect(() => {
+    if (removeConfirmationId !== null) {
+      if (busyAction !== null) return;
+      const frame = window.requestAnimationFrame(() => {
+        deleteConfirmRef.current?.focus();
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
 
-    void loadTraining();
-    return () => {
-      canceled = true;
-    };
-  }, [liveMode, selectedGuild.id, selectedGuild.name]);
+    if (!returnDeleteFocusIdRef.current) return;
+    const entryId = returnDeleteFocusIdRef.current;
+    returnDeleteFocusIdRef.current = null;
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>(
+          `[data-remove-entry-id="${CSS.escape(entryId)}"]`,
+        )
+        ?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [busyAction, removeConfirmationId]);
 
   const previewAnswer = useMemo(
     () => answerHackathonQuestion(question, entries, settings),
     [entries, question, settings],
   );
+  const busy = busyAction !== null;
 
   async function addEntry() {
-    if (!title.trim() || !answer.trim()) {
-      setStatus("Add a title and answer first.");
+    const nextErrors: { title?: string; answer?: string } = {};
+    if (!title.trim()) nextErrors.title = "Enter the participant question.";
+    if (!answer.trim())
+      nextErrors.answer = "Enter the answer PipHackLup should give.";
+    setEntryErrors(nextErrors);
+    if (nextErrors.title || nextErrors.answer) {
+      setNotice({
+        kind: "error",
+        message:
+          "Add both a participant question and the answer they should receive.",
+      });
+      if (nextErrors.title) titleRef.current?.focus();
+      else answerRef.current?.focus();
       return;
     }
 
-    if (liveMode) {
-      const guildQuery = encodeURIComponent(selectedGuild.id);
-      const response = await fetch(
-        `/api/training/entries?guildId=${guildQuery}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title, answer, tags, escalationTarget }),
-        },
-      );
-      if (!response.ok) {
-        setStatus("Live training save failed.");
-        return;
-      }
-      const json = (await response.json()) as {
-        entry: HackathonKnowledgeEntry;
-      };
-      setEntries((current) => [json.entry, ...current]);
-      setStatus(`Saved live training entry: ${json.entry.title}.`);
-    } else {
-      const entry = createKnowledgeEntry({
-        guildId: selectedGuild.id,
-        title,
-        answer,
-        tags: tags.split(","),
-        escalationTarget,
-        createdBy: session?.user.id ?? "preview",
+    setBusyAction("add");
+    setNotice({ kind: "status", message: "Saving this answer…" });
+    try {
+      const response = await trainingFetch("/api/training/entries", guild.id, {
+        method: "POST",
+        body: JSON.stringify({ title, answer, tags, escalationTarget }),
       });
-      setEntries((current) => [entry, ...current]);
-      setStatus(`Preview entry added: ${entry.title}.`);
+      const body = (await response.json()) as {
+        entry: HackathonKnowledgeEntry;
+        warning?: string | null;
+      };
+      setEntries((current) => [body.entry, ...current]);
+      setTitle("");
+      setAnswer("");
+      setEntryErrors({});
+      setTags("");
+      setEscalationTarget("none");
+      setNotice({
+        kind: body.warning ? "error" : "status",
+        message: body.warning
+          ? `Saved “${body.entry.title}” for ${guild.name}, but its activity-log entry could not be recorded. The answer itself is safe.`
+          : `Saved “${body.entry.title}” for ${guild.name}.`,
+      });
+    } catch (error) {
+      setNotice({ kind: "error", message: trainingErrorMessage(error) });
+    } finally {
+      setBusyAction(null);
     }
-
-    setTitle("");
-    setAnswer("");
-    setTags("");
-    setEscalationTarget("none");
   }
 
   async function importEntries() {
     if (!importText.trim()) {
-      setStatus("Paste training lines first.");
+      setNotice({
+        kind: "error",
+        message: "Paste at least one event detail before importing.",
+      });
       return;
     }
 
-    if (liveMode) {
-      const guildQuery = encodeURIComponent(selectedGuild.id);
-      const response = await fetch(
-        `/api/training/entries?guildId=${guildQuery}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ importText, escalationTarget }),
-        },
-      );
-      if (!response.ok) {
-        setStatus("Live import failed.");
-        return;
-      }
-      const json = (await response.json()) as {
+    setBusyAction("import");
+    setNotice({ kind: "status", message: "Checking and importing details…" });
+    try {
+      const response = await trainingFetch("/api/training/entries", guild.id, {
+        method: "POST",
+        body: JSON.stringify({ importText, escalationTarget }),
+      });
+      const body = (await response.json()) as {
         entries: HackathonKnowledgeEntry[];
+        warning?: string | null;
       };
-      setEntries((current) => [...json.entries, ...current]);
-      setStatus(`Imported ${json.entries.length} live training entries.`);
-    } else {
-      const imported = parseKnowledgeImportText(
-        importText,
-        escalationTarget,
-      ).map((entry) =>
-        createKnowledgeEntry({
-          guildId: selectedGuild.id,
-          title: entry.title,
-          answer: entry.answer,
-          tags: entry.tags,
-          escalationTarget: entry.escalationTarget,
-          createdBy: session?.user.id ?? "preview",
-        }),
-      );
-      setEntries((current) => [...imported, ...current]);
-      setStatus(`Preview imported ${imported.length} entries.`);
+      setEntries((current) => [...body.entries, ...current]);
+      setImportText("");
+      setNotice({
+        kind: body.warning ? "error" : "status",
+        message: body.warning
+          ? `Imported ${body.entries.length} answer${body.entries.length === 1 ? "" : "s"}, but the activity-log entry could not be recorded. The answers themselves are safe.`
+          : `Imported ${body.entries.length} answer${body.entries.length === 1 ? "" : "s"}.`,
+      });
+    } catch (error) {
+      setNotice({ kind: "error", message: trainingErrorMessage(error) });
+    } finally {
+      setBusyAction(null);
     }
-    setImportText("");
   }
 
   async function saveSettings() {
-    if (liveMode) {
-      const guildQuery = encodeURIComponent(selectedGuild.id);
-      const response = await fetch(
-        `/api/training/settings?guildId=${guildQuery}`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(settings),
-        },
-      );
-      if (!response.ok) {
-        setStatus("Live settings save failed.");
-        return;
-      }
-      setStatus("Live escalation settings saved.");
-      return;
+    setBusyAction("settings");
+    setNotice({ kind: "status", message: "Saving answer settings…" });
+    try {
+      const response = await trainingFetch("/api/training/settings", guild.id, {
+        method: "POST",
+        body: JSON.stringify({
+          ...settings,
+          staffRoleId: settings.staffRoleId ?? null,
+          mentorRoleId: settings.mentorRoleId ?? null,
+          helpChannelId: settings.helpChannelId ?? null,
+        }),
+      });
+      const body = (await response.json()) as { warning?: string | null };
+      setNotice({
+        kind: body.warning ? "error" : "status",
+        message: body.warning
+          ? `Settings were saved for ${guild.name}, but the activity-log entry could not be recorded.`
+          : `Answer and follow-up settings saved for ${guild.name}.`,
+      });
+    } catch (error) {
+      setNotice({ kind: "error", message: trainingErrorMessage(error) });
+    } finally {
+      setBusyAction(null);
     }
-    setStatus("Preview settings updated.");
   }
 
-  async function removeEntry(entryId: string) {
-    if (liveMode) {
-      const guildQuery = encodeURIComponent(selectedGuild.id);
-      const entryQuery = encodeURIComponent(entryId);
-      const response = await fetch(
-        `/api/training/entries?guildId=${guildQuery}&entryId=${entryQuery}`,
+  async function removeEntry(entry: HackathonKnowledgeEntry) {
+    setBusyAction(`delete:${entry.id}`);
+    setNotice({ kind: "status", message: `Removing “${entry.title}”…` });
+    try {
+      const response = await trainingFetch(
+        "/api/training/entries",
+        guild.id,
         { method: "DELETE" },
+        { entryId: entry.id },
       );
-      if (!response.ok) {
-        setStatus("Could not delete live training entry.");
-        return;
-      }
+      const body = (await response.json()) as { warning?: string | null };
+      setEntries((current) => current.filter((item) => item.id !== entry.id));
+      setRemoveConfirmationId(null);
+      returnDeleteFocusIdRef.current = null;
+      setNotice({
+        kind: body.warning ? "error" : "status",
+        message: body.warning
+          ? `Removed “${entry.title}” from ${guild.name}, but the activity-log entry could not be recorded.`
+          : `Removed “${entry.title}” from ${guild.name}.`,
+      });
+    } catch (error) {
+      setNotice({ kind: "error", message: trainingErrorMessage(error) });
+    } finally {
+      setBusyAction(null);
     }
-    setEntries((current) => current.filter((entry) => entry.id !== entryId));
-    setStatus("Training entry removed.");
+  }
+
+  function askToRemoveEntry(entryId: string): void {
+    setRemoveConfirmationId(entryId);
+  }
+
+  function cancelEntryRemoval(): void {
+    returnDeleteFocusIdRef.current = removeConfirmationId;
+    setRemoveConfirmationId(null);
   }
 
   function updateOptionalSetting(
@@ -262,110 +288,100 @@ export function TrainingConsole({
   ) {
     setSettings((current) => {
       const next = { ...current };
-      if (value) {
-        next[key] = value;
-      } else {
-        delete next[key];
-      }
+      if (value) next[key] = value;
+      else delete next[key];
+      return next;
+    });
+  }
+
+  function clearEntryError(key: "title" | "answer") {
+    setEntryErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
       return next;
     });
   }
 
   return (
-    <div className="training-grid">
-      <section className="card training-panel">
-        <h2>Linked Discord Account</h2>
-        {session ? (
-          <div className="account-row">
-            {session.user.avatarUrl ? (
-              <img src={session.user.avatarUrl} alt="" className="avatar" />
-            ) : (
-              <span className="avatar fallback">
-                {session.user.username.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            <div>
-              <strong>
-                {session.user.globalName ?? session.user.username}
-              </strong>
-              <div className="small">Discord ID {session.user.id}</div>
-            </div>
-            <a className="button" href="/api/auth/logout">
-              Sign out
-            </a>
-          </div>
-        ) : (
-          <div className="steps">
-            <div className="step">
-              <span className="step-icon">1</span>
-              <div>
-                <strong>Connect Discord</strong>
-                <div className="small">
-                  The dashboard will show servers where your account has Manage
-                  Server.
-                </div>
-              </div>
-              <a className="button primary" href="/api/auth/discord/start">
-                Connect
-              </a>
-            </div>
-          </div>
-        )}
+    <div className="training-grid" aria-busy={busy}>
+      <div
+        className={`training-notice ${notice.kind}`}
+        role={notice.kind === "error" ? "alert" : "status"}
+        aria-live={notice.kind === "error" ? "assertive" : "polite"}
+      >
+        {notice.message}
+      </div>
 
-        <label className="field">
-          <span>Server deployment</span>
-          <select
-            value={selectedGuild.id}
-            onChange={(event) => setSelectedGuildId(event.target.value)}
-          >
-            {guilds.map((guild) => (
-              <option key={guild.id} value={guild.id}>
-                {guild.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="status-strip">
-          <span className={`badge ${liveMode ? "green" : "amber"}`}>
-            {liveMode ? "Live" : "Preview"}
-          </span>
-          <span>{status}</span>
+      <section className="card training-panel">
+        <div className="section-heading">
+          <div>
+            <h2>Add an answer</h2>
+            <p className="small">
+              Use the words participants are likely to use.
+            </p>
+          </div>
+          <Sparkles aria-hidden size={20} />
         </div>
-        <a className="button primary full" href={installUrl}>
-          Add PipHackLup to this Discord server
-        </a>
-      </section>
-
-      <section className="card training-panel">
-        <h2>Train Event Details</h2>
         <label className="field">
-          <span>Question or topic</span>
+          <span>Participant question or topic</span>
           <input
+            ref={titleRef}
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Opening ceremony time"
+            maxLength={200}
+            aria-invalid={Boolean(entryErrors.title)}
+            aria-describedby={
+              entryErrors.title ? "training-title-error" : undefined
+            }
+            onChange={(event) => {
+              setTitle(event.target.value);
+              clearEntryError("title");
+            }}
+            placeholder="When does the opening ceremony start?"
+            disabled={busy}
           />
+          {entryErrors.title ? (
+            <span className="field-error" id="training-title-error">
+              {entryErrors.title}
+            </span>
+          ) : null}
         </label>
         <label className="field">
-          <span>Answer participants should get</span>
+          <span>Answer PipHackLup should give</span>
           <textarea
+            ref={answerRef}
             value={answer}
-            onChange={(event) => setAnswer(event.target.value)}
+            maxLength={4000}
+            aria-invalid={Boolean(entryErrors.answer)}
+            aria-describedby={
+              entryErrors.answer ? "training-answer-error" : undefined
+            }
+            onChange={(event) => {
+              setAnswer(event.target.value);
+              clearEntryError("answer");
+            }}
             rows={5}
-            placeholder="Opening ceremony starts at 9:30 AM in the main auditorium."
+            placeholder="The opening ceremony starts at 9:30 AM in the main auditorium."
+            disabled={busy}
           />
+          {entryErrors.answer ? (
+            <span className="field-error" id="training-answer-error">
+              {entryErrors.answer}
+            </span>
+          ) : null}
         </label>
         <div className="form-grid">
           <label className="field">
-            <span>Keywords</span>
+            <span>Helpful keywords</span>
             <input
               value={tags}
               onChange={(event) => setTags(event.target.value)}
               placeholder="opening, schedule, auditorium"
+              disabled={busy}
             />
           </label>
           <label className="field">
-            <span>Human follow-up</span>
+            <span>When a person should follow up</span>
             <select
               value={escalationTarget}
               onChange={(event) =>
@@ -373,66 +389,82 @@ export function TrainingConsole({
                   event.target.value as KnowledgeEscalationTarget,
                 )
               }
+              disabled={busy}
             >
-              <option value="none">No automatic ping</option>
-              <option value="mentor">Ping mentors</option>
-              <option value="staff">Ping staff</option>
+              <option value="none">No automatic follow-up</option>
+              <option value="mentor">Ask a mentor to follow up</option>
+              <option value="staff">Ask staff to follow up</option>
             </select>
           </label>
         </div>
-        <button className="button primary" type="button" onClick={addEntry}>
-          Save training entry
+        <button
+          className="button primary"
+          type="button"
+          onClick={addEntry}
+          disabled={busy}
+        >
+          <Save aria-hidden size={16} />
+          {busyAction === "add" ? "Saving…" : "Save answer"}
         </button>
       </section>
 
       <section className="card training-panel">
-        <h2>Bulk Import</h2>
+        <h2>Import several details</h2>
+        <p className="small training-help">
+          Put one detail on each line: question | answer | comma-separated
+          keywords | optional mentor or staff follow-up.
+        </p>
         <label className="field">
-          <span>One line per detail</span>
+          <span>Event details</span>
           <textarea
             value={importText}
             onChange={(event) => setImportText(event.target.value)}
-            rows={6}
-            placeholder="Judging time | Judging starts at 1 PM in #demo-rooms | judging,demo | staff"
+            rows={8}
+            placeholder="When is judging? | Judging starts at 1 PM in the demo rooms. | judging,demo | staff"
+            disabled={busy}
           />
         </label>
-        <button className="button" type="button" onClick={importEntries}>
-          Import details
+        <button
+          className="button"
+          type="button"
+          onClick={importEntries}
+          disabled={busy}
+        >
+          <Upload aria-hidden size={16} />
+          {busyAction === "import" ? "Importing…" : "Import details"}
         </button>
       </section>
 
       <section className="card training-panel">
-        <h2>Escalation Settings</h2>
+        <h2>Human follow-up</h2>
+        <p className="small training-help">
+          Choose existing Discord roles and a help channel. PipHackLup never
+          creates a hidden destination from a pasted ID.
+        </p>
         <div className="form-grid">
+          <DiscordSelect
+            label="Staff role"
+            value={settings.staffRoleId ?? ""}
+            options={discordOptions?.roles ?? []}
+            disabled={busy || discordOptionsStatus !== "ready"}
+            onChange={(value) => updateOptionalSetting("staffRoleId", value)}
+          />
+          <DiscordSelect
+            label="Mentor role"
+            value={settings.mentorRoleId ?? ""}
+            options={discordOptions?.roles ?? []}
+            disabled={busy || discordOptionsStatus !== "ready"}
+            onChange={(value) => updateOptionalSetting("mentorRoleId", value)}
+          />
+          <DiscordSelect
+            label="Help channel"
+            value={settings.helpChannelId ?? ""}
+            options={discordOptions?.channels ?? []}
+            disabled={busy || discordOptionsStatus !== "ready"}
+            onChange={(value) => updateOptionalSetting("helpChannelId", value)}
+          />
           <label className="field">
-            <span>Staff role ID</span>
-            <input
-              value={settings.staffRoleId ?? ""}
-              onChange={(event) =>
-                updateOptionalSetting("staffRoleId", event.target.value)
-              }
-            />
-          </label>
-          <label className="field">
-            <span>Mentor role ID</span>
-            <input
-              value={settings.mentorRoleId ?? ""}
-              onChange={(event) =>
-                updateOptionalSetting("mentorRoleId", event.target.value)
-              }
-            />
-          </label>
-          <label className="field">
-            <span>Help channel ID</span>
-            <input
-              value={settings.helpChannelId ?? ""}
-              onChange={(event) =>
-                updateOptionalSetting("helpChannelId", event.target.value)
-              }
-            />
-          </label>
-          <label className="field">
-            <span>Minimum confidence</span>
+            <span>Minimum answer confidence</span>
             <input
               type="number"
               min={1}
@@ -444,9 +476,28 @@ export function TrainingConsole({
                   minConfidence: Number(event.target.value),
                 }))
               }
+              disabled={busy}
             />
           </label>
         </div>
+        {botInstallation === false ? (
+          <p className="field-help">
+            Add PipHackLup to this server before choosing Discord roles and
+            channels. Saved answers can be prepared now.
+          </p>
+        ) : botInstallation === null ? (
+          <p className="field-help">
+            Installation status is temporarily unavailable, so Discord roles and
+            channels cannot be loaded. Refresh this page, then try again.
+          </p>
+        ) : discordOptionsStatus === "error" ? (
+          <p className="field-help">
+            Discord roles and channels could not be loaded. Refresh this page,
+            then try again. Your saved answers are still available.
+          </p>
+        ) : discordOptionsStatus === "loading" ? (
+          <p className="field-help">Loading Discord roles and channels…</p>
+        ) : null}
         <label className="toggle-row">
           <input
             type="checkbox"
@@ -457,18 +508,25 @@ export function TrainingConsole({
                 publicAnswers: event.target.checked,
               }))
             }
+            disabled={busy}
           />
-          <span>Answer publicly by default</span>
+          <span>Answer in the channel by default</span>
         </label>
-        <button className="button" type="button" onClick={saveSettings}>
-          Save settings
+        <button
+          className="button"
+          type="button"
+          onClick={saveSettings}
+          disabled={busy}
+        >
+          <Save aria-hidden size={16} />
+          {busyAction === "settings" ? "Saving…" : "Save follow-up settings"}
         </button>
       </section>
 
-      <section className="card training-panel wide">
-        <h2>Ask Preview</h2>
+      <section className="card training-panel">
+        <h2>Try a participant question</h2>
         <label className="field">
-          <span>Participant question</span>
+          <span>Question</span>
           <input
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
@@ -479,8 +537,8 @@ export function TrainingConsole({
           <div>
             <strong>
               {previewAnswer.shouldEscalate
-                ? "Answer + human follow-up"
-                : "Answer from training"}
+                ? "Answer with human follow-up"
+                : "Answer from saved details"}
             </strong>
             <p>{previewAnswer.answer}</p>
             <div className="small">{previewAnswer.escalationReason}</div>
@@ -489,49 +547,173 @@ export function TrainingConsole({
       </section>
 
       <section className="card training-panel wide">
-        <h2>Training Library</h2>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Topic</th>
-              <th>Keywords</th>
-              <th>Follow-up</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
+        <div className="section-heading">
+          <div>
+            <h2>Saved answers</h2>
+            <p className="small">
+              {entries.length} in {guild.name}
+            </p>
+          </div>
+        </div>
+        {entries.length ? (
+          <div className="training-library">
             {entries.map((entry) => (
-              <tr key={entry.id}>
-                <td>
-                  <strong>{entry.title}</strong>
-                  <div className="small">{entry.answer}</div>
-                </td>
-                <td>{entry.tags.join(", ") || "none"}</td>
-                <td>
-                  <span
-                    className={
-                      entry.escalationTarget === "none"
-                        ? "badge green"
-                        : "badge amber"
-                    }
+              <article key={entry.id}>
+                <div>
+                  <h3>{entry.title}</h3>
+                  <p>{entry.answer}</p>
+                  <div className="training-tags">
+                    {entry.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                    <span>
+                      {entry.escalationTarget === "none"
+                        ? "No automatic follow-up"
+                        : `${entry.escalationTarget} follow-up`}
+                    </span>
+                  </div>
+                </div>
+                {removeConfirmationId === entry.id ? (
+                  <div
+                    className="training-delete-confirm"
+                    role="group"
+                    aria-label={`Confirm removal of ${entry.title}`}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Escape" || busy) return;
+                      event.preventDefault();
+                      cancelEntryRemoval();
+                    }}
                   >
-                    {entry.escalationTarget}
-                  </span>
-                </td>
-                <td>
+                    <p>
+                      Remove <strong>“{entry.title}”</strong>? Participants will
+                      no longer receive this saved answer.
+                    </p>
+                    <div>
+                      <button
+                        className="button danger"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => removeEntry(entry)}
+                        ref={deleteConfirmRef}
+                      >
+                        <Trash2 aria-hidden size={16} />
+                        {busyAction === `delete:${entry.id}`
+                          ? "Removing…"
+                          : "Confirm remove"}
+                      </button>
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={busy}
+                        onClick={cancelEntryRemoval}
+                      >
+                        Keep answer
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <button
-                    className="button"
+                    className="button danger-ghost"
                     type="button"
-                    onClick={() => removeEntry(entry.id)}
+                    disabled={busy}
+                    onClick={() => askToRemoveEntry(entry.id)}
+                    aria-label={`Remove ${entry.title}`}
+                    data-remove-entry-id={entry.id}
                   >
+                    <Trash2 aria-hidden size={16} />
                     Remove
                   </button>
-                </td>
-              </tr>
+                )}
+              </article>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <p className="inline-empty">
+            No answers have been saved for this server yet. Add the event basics
+            above, then try the participant question preview.
+          </p>
+        )}
       </section>
     </div>
   );
+}
+
+function DiscordSelect({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: Readonly<{
+  label: string;
+  value: string;
+  options: DiscordOption[];
+  disabled: boolean;
+  onChange: (value: string) => void;
+}>) {
+  const currentOptionExists = options.some((option) => option.id === value);
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+      >
+        <option value="">Not selected</option>
+        {value && !currentOptionExists ? (
+          <option value={value}>Previously selected</option>
+        ) : null}
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+async function trainingFetch(
+  path: string,
+  guildId: string,
+  init: RequestInit,
+  extraQuery: Record<string, string> = {},
+): Promise<Response> {
+  const query = new URLSearchParams({ guildId, ...extraQuery });
+  const response = await fetch(`${path}?${query.toString()}`, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...init.headers,
+    },
+  });
+  if (response.ok) return response;
+  const body = (await response.json().catch(() => null)) as {
+    error?: string;
+  } | null;
+  throw new Error(body?.error ?? `request_failed_${response.status}`);
+}
+
+function trainingErrorMessage(error: unknown): string {
+  const code = error instanceof Error ? error.message : "unknown";
+  switch (code) {
+    case "training_content_rejected":
+      return "That text looks like an instruction-override attempt, so it was not saved. Rewrite it as plain event information or ask staff to review it.";
+    case "training_import_empty":
+      return "No usable event details were found. Add one detail per line, then import again.";
+    case "training_import_too_many_entries":
+      return "This import has more than 50 event details. Split it into smaller groups so every answer can be reviewed and saved.";
+    case "missing_manage_server":
+      return "Your Discord account no longer has permission to manage this server.";
+    case "untrusted_request_origin":
+      return "This save could not be verified. Refresh the page and try again.";
+    case "rate_limited":
+      return "Too many changes were sent at once. Wait a moment, then try again.";
+    case "database_not_configured":
+    case "database_unavailable":
+      return "Your saved answers are temporarily unavailable. Nothing was changed; try again shortly.";
+    default:
+      return "That change could not be saved. Nothing was lost; try again.";
+  }
 }

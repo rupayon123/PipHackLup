@@ -1,123 +1,118 @@
-import {
-  ClipboardList,
-  Download,
-  MessageCircleQuestion,
-  Settings,
-} from "lucide-react";
+import { CheckCircle2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { MetricCard } from "@/components/MetricCard";
 import { PageHeader } from "@/components/PageHeader";
 import {
-  demoCases,
-  demoMembers,
-  demoTeams,
-  demoTickets,
-} from "@/lib/demo-data";
+  ServerManager,
+  type ManagedServerView,
+} from "@/components/ServerManager";
+import {
+  isDiscordAuthConfigured,
+  readDiscordSession,
+  type DiscordSession,
+} from "@/lib/discord-auth";
+import {
+  getDiscordInstallUrl,
+  isDiscordBotApiConfigured,
+  listDiscordBotGuildIds,
+} from "@/lib/discord-installation";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const authReady = isDiscordAuthConfigured();
+  const botApiReady = isDiscordBotApiConfigured();
+  let session: DiscordSession | null = null;
+  let sessionUnavailable = false;
+  if (authReady) {
+    try {
+      session = await readDiscordSession();
+    } catch {
+      sessionUnavailable = true;
+      console.error("PipHackLup could not load the organizer session.");
+    }
+  }
+  let installedGuildIds = new Set<string>();
+  let installationStatusError: string | undefined;
+
+  if (session && botApiReady) {
+    try {
+      installedGuildIds = await listDiscordBotGuildIds();
+    } catch {
+      installationStatusError =
+        "Discord installation status is temporarily unavailable. No server actions were changed.";
+    }
+  } else if (session) {
+    installationStatusError =
+      "Bot management is not configured on this deployment yet.";
+  }
+
+  const servers: ManagedServerView[] = (session?.guilds ?? []).map((guild) => ({
+    id: guild.id,
+    name: guild.name,
+    ...(guild.iconUrl ? { iconUrl: guild.iconUrl } : {}),
+    isOwner: guild.isOwner,
+    installed:
+      botApiReady && !installationStatusError
+        ? installedGuildIds.has(guild.id)
+        : null,
+    installUrl: getDiscordInstallUrl(guild.id),
+  }));
+  const installedCount = servers.filter((server) => server.installed).length;
+
   return (
-    <AppShell>
+    <AppShell session={session} sessionUnavailable={sessionUnavailable}>
       <PageHeader
-        eyebrow="Test server demo"
-        title="Hackathon ops at a glance"
-        subtitle="A compact command center for queues, team formation, onboarding, moderation cases, and setup readiness."
+        eyebrow="Organizer workspace"
+        title="Your Discord servers"
+        subtitle="Choose the server you are working on. PipHackLup will show what is installed and what needs your attention."
         actions={
-          <>
-            <a className="button primary" href="/setup">
-              <Settings aria-hidden size={16} />
-              Setup
-            </a>
-            <a className="button" href="/training">
-              <MessageCircleQuestion aria-hidden size={16} />
-              Train Q&A
-            </a>
-            <a className="button" href="/api/export">
-              <Download aria-hidden size={16} />
-              CSV
-            </a>
-          </>
+          <a className="button" href="/api/auth/discord/start">
+            <RefreshCw aria-hidden size={16} />
+            Sync with Discord
+          </a>
         }
       />
 
-      <div className="grid metrics">
-        <MetricCard
-          label="Participants"
-          value={String(demoMembers.length)}
-          detail="Profiles in the matching pool"
-        />
-        <MetricCard
-          label="Open tickets"
-          value={String(demoTickets.length)}
-          detail="Mentor, tech, and judging"
-        />
-        <MetricCard
-          label="Recruiting teams"
-          value={String(demoTeams.length)}
-          detail="Teams still looking for hackers"
-        />
-        <MetricCard
-          label="Open cases"
-          value={String(demoCases.length)}
-          detail="Reports awaiting staff review"
-        />
-      </div>
-
-      <div className="grid two" style={{ marginTop: 16 }}>
-        <section className="card">
-          <h2>Queue pressure</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Kind</th>
-                <th>Topic</th>
-                <th>Priority</th>
-              </tr>
-            </thead>
-            <tbody>
-              {demoTickets.map((ticket) => (
-                <tr key={ticket.id}>
-                  <td>
-                    <span className="badge blue">{ticket.kind}</span>
-                  </td>
-                  <td>{ticket.topic}</td>
-                  <td>{ticket.priority}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        <section className="card">
-          <h2>Organizer rhythm</h2>
-          <div className="steps">
-            <div className="step">
-              <span className="step-icon">
-                <ClipboardList aria-hidden size={16} />
-              </span>
-              <div>
-                <strong>Every 15 minutes</strong>
-                <div className="small">
-                  Clear escalated mentor/tech tickets before they age into
-                  event-wide blockers.
-                </div>
-              </div>
-              <span className="badge amber">Live</span>
-            </div>
-            <div className="step">
-              <span className="step-icon">
-                <ClipboardList aria-hidden size={16} />
-              </span>
-              <div>
-                <strong>Before judging</strong>
-                <div className="small">
-                  Export teams and verify every group has a demo queue status.
-                </div>
-              </div>
-              <span className="badge green">Ready</span>
-            </div>
+      <section
+        className="workspace-summary"
+        aria-label="Discord connection summary"
+      >
+        <div className="workspace-summary-intro">
+          <CheckCircle2 aria-hidden size={20} />
+          <div>
+            <strong>
+              {session
+                ? `Connected as ${session.user.globalName ?? session.user.username}`
+                : "Discord is not connected"}
+            </strong>
+            <span>
+              Only servers you own or can manage are shown. Permissions are
+              checked again before every change.
+            </span>
           </div>
-        </section>
-      </div>
+        </div>
+        <dl>
+          <div>
+            <dt>Servers you manage</dt>
+            <dd>{session?.guilds.length ?? 0}</dd>
+          </div>
+          <div>
+            <dt>PipHackLup installed</dt>
+            <dd>
+              {botApiReady && !installationStatusError ? installedCount : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt>Bot management</dt>
+            <dd>{authReady && botApiReady ? "Available" : "Needs setup"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="server-manager-section" aria-label="Discord servers">
+        <ServerManager
+          servers={servers}
+          {...(installationStatusError ? { installationStatusError } : {})}
+        />
+      </section>
     </AppShell>
   );
 }
