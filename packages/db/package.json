@@ -25,6 +25,6 @@
     "drizzle-kit": "^0.31.8",
     "postgres": "^3.4.9",
     "typescript": "^6.0.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.11"
   }
 }
