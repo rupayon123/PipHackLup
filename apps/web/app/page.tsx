@@ -1,9 +1,9 @@
+import { GithubIcon } from "../components/GithubIcon";
 import {
   ArrowRight,
   Bot,
   ClipboardCheck,
   Clock3,
-  Github,
   LayoutDashboard,
   MessageCircleQuestion,
   Radio,
@@ -92,7 +92,7 @@ export default function HomePage() {
                 className="button"
                 href="https://github.com/rupayon123/PipHackLup"
               >
-                <Github aria-hidden size={16} />
+                <GithubIcon aria-hidden size={16} />
                 GitHub
               </a>
               <a className="button primary" href={installUrl}>
@@ -230,7 +230,7 @@ export default function HomePage() {
               href="https://github.com/rupayon123/PipHackLup"
             >
               Public repo
-              <Github aria-hidden size={18} />
+              <GithubIcon aria-hidden size={18} />
             </a>
           </div>
         </section>
